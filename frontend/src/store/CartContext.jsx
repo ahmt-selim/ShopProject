@@ -1,23 +1,63 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import { useAuth } from './AuthContext';
 
 const CartContext = createContext(null);
 
+// Giriş yoksa sepet localStorage'da, giriş varsa sunucuda (kullanıcı bazlı).
+// Giriş yapılınca misafir sepeti hesaba aktarılır.
 export function CartProvider({ children }) {
-  const [items, setItems] = useState(() => {
+  const { user } = useAuth();
+  const [serverItems, setServerItems] = useState([]);
+  const [guest, setGuest] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('cart') || '[]');
     } catch {
       return [];
     }
   });
+  const mergedFor = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(items));
-  }, [items]);
+    localStorage.setItem('cart', JSON.stringify(guest));
+  }, [guest]);
 
-  const add = (product, qty = 1) => {
-    setItems((prev) => {
+  const loadServer = () => api.getCart().then((d) => setServerItems(d.items)).catch(() => {});
+
+  useEffect(() => {
+    if (user) {
+      if (guest.length > 0 && mergedFor.current !== user.id) {
+        mergedFor.current = user.id;
+        (async () => {
+          for (const g of guest) {
+            try {
+              await api.addCartItem(g.id, g.qty);
+            } catch {
+              /* silinmiş ürün vb. atlanır */
+            }
+          }
+          setGuest([]);
+          loadServer();
+        })();
+      } else {
+        loadServer();
+      }
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const items = user ? serverItems : guest;
+
+  const add = async (product, qty = 1) => {
+    if (user) {
+      try {
+        const cart = await api.addCartItem(product.id, qty);
+        setServerItems(cart.items);
+      } catch (err) {
+        alert(err.message);
+      }
+      return;
+    }
+    setGuest((prev) => {
       const found = prev.find((i) => i.id === product.id);
       if (found) {
         return prev.map((i) =>
@@ -28,14 +68,48 @@ export function CartProvider({ children }) {
     });
   };
 
-  const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
-  const setQty = (id, qty) =>
-    setItems((prev) =>
+  const remove = async (id) => {
+    if (user) {
+      try {
+        const cart = await api.removeCartItem(id);
+        setServerItems(cart.items);
+      } catch (err) {
+        alert(err.message);
+      }
+      return;
+    }
+    setGuest((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const setQty = async (id, qty) => {
+    if (user) {
+      try {
+        const cart = await api.setCartItem(id, qty);
+        setServerItems(cart.items);
+      } catch (err) {
+        alert(err.message);
+      }
+      return;
+    }
+    setGuest((prev) =>
       qty <= 0
         ? prev.filter((i) => i.id !== id)
         : prev.map((i) => (i.id === id ? { ...i, qty } : i))
     );
-  const clear = () => setItems([]);
+  };
+
+  const clear = async () => {
+    if (user) {
+      try {
+        await api.clearCart();
+        setServerItems([]);
+      } catch (err) {
+        alert(err.message);
+      }
+      return;
+    }
+    setGuest([]);
+  };
 
   const totalCount = items.reduce((s, i) => s + i.qty, 0);
   const totalPrice = items.reduce((s, i) => s + i.qty * i.price, 0);

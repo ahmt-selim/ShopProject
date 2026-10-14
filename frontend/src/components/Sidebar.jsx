@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 
 export default function Sidebar({ categories, selected, onSelect }) {
@@ -7,11 +7,6 @@ export default function Sidebar({ categories, selected, onSelect }) {
 
   return (
     <aside className="sidebar">
-      {isAdmin && (
-        <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
-          Yönetim Paneli
-        </button>
-      )}
       <h3>Kategoriler</h3>
       <ul>
         <li>
@@ -33,9 +28,11 @@ export default function Sidebar({ categories, selected, onSelect }) {
           </li>
         ))}
       </ul>
-      <div className="side-note">
-        <NavLink to="/cart">Sepete git →</NavLink>
-      </div>
+      {isAdmin && (
+        <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
+          Yönetim Paneli
+        </button>
+      )}
     </aside>
   );
 }

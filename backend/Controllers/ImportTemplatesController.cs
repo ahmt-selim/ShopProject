@@ -1,0 +1,66 @@
+using System.Text.Json;
+using Backend.Data;
+using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Backend.Controllers;
+
+[Authorize(Roles = "admin")]
+[ApiController]
+[Route("api/[controller]")]
+public class ImportTemplatesController(AppDbContext db) : ControllerBase
+{
+    public record TemplateDto(string Name, Dictionary<string, string> Mappings, int StartRow);
+
+    [HttpGet]
+    public ActionResult<object> GetAll() =>
+        Ok(db.ImportTemplates.OrderByDescending(t => t.Id).ToList()
+            .Select(t => new
+            {
+                t.Id,
+                t.Name,
+                mappings = JsonSerializer.Deserialize<Dictionary<string, string>>(t.MappingsJson) ?? new(),
+                t.StartRow,
+                t.CreatedAt
+            }));
+
+    [HttpPost]
+    public ActionResult<object> Create(TemplateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { error = "Şablon adı zorunlu." });
+        var t = new ImportTemplate
+        {
+            Name = dto.Name.Trim(),
+            MappingsJson = JsonSerializer.Serialize(dto.Mappings ?? new()),
+            StartRow = dto.StartRow < 1 ? 2 : dto.StartRow,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.ImportTemplates.Add(t);
+        db.SaveChanges();
+        return Ok(new { t.Id, t.Name });
+    }
+
+    [HttpPut("{id:int}")]
+    public ActionResult<object> Update(int id, TemplateDto dto)
+    {
+        var t = db.ImportTemplates.Find(id);
+        if (t is null) return NotFound();
+        if (!string.IsNullOrWhiteSpace(dto.Name)) t.Name = dto.Name.Trim();
+        if (dto.Mappings is not null) t.MappingsJson = JsonSerializer.Serialize(dto.Mappings);
+        if (dto.StartRow >= 1) t.StartRow = dto.StartRow;
+        db.SaveChanges();
+        return Ok(new { t.Id, t.Name });
+    }
+
+    [HttpDelete("{id:int}")]
+    public IActionResult Delete(int id)
+    {
+        var t = db.ImportTemplates.Find(id);
+        if (t is null) return NotFound();
+        db.ImportTemplates.Remove(t);
+        db.SaveChanges();
+        return NoContent();
+    }
+}

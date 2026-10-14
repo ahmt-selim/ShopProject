@@ -320,6 +320,20 @@ public static class ShopDbSeeder
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_ProductImages" PRIMARY KEY AUTOINCREMENT,
                 "ProductId" INTEGER NOT NULL,
                 "Url" TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS "ImportTemplates" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_ImportTemplates" PRIMARY KEY AUTOINCREMENT,
+                "Name" TEXT NOT NULL,
+                "MappingsJson" TEXT NOT NULL,
+                "StartRow" INTEGER NOT NULL,
+                "CreatedAt" TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS "Carts" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_Carts" PRIMARY KEY AUTOINCREMENT,
+                "UserId" TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS "CartItems" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_CartItems" PRIMARY KEY AUTOINCREMENT,
+                "CartId" INTEGER NOT NULL,
+                "ProductId" INTEGER NOT NULL,
+                "Qty" INTEGER NOT NULL);
             """);
 
         foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'") })

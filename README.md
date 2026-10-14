@@ -25,7 +25,7 @@ npm run dev
 ## Müşteri tarafı
 - Anasayfa: ürün grid + sol menüde kategoriler
 - Ürün detay: sepete ekle + kalp ikonu ile favori (giriş gerekmez)
-- Favoriler: girişsiz localStorage'da, giriş yapınca hesaba aktarılır. Sepet de cihazda saklanır, giriş sonrası da durur.
+- Favoriler: girişsiz localStorage'da, giriş yapınca hesaba aktarılır. Sepet: girişsiz cihazda, girişliyken kullanıcı bazlı sunucuda (`Carts`/`CartItems`) saklanır; çıkış/girişte hesaba geri gelir.
 - Sağ üst: ikon butonlar (tema, favori, sepet+adet, hesabım). Sol menüde admin için Yönetim Paneli butonu.
 - Sepet -> Siparişi Tamamla (/checkout): adres seç + onayla, stok düşer, sipariş no üretilir (SP-2026-0001...)
 - Hesabım (ikon): açılır menü — Hesap Bilgileri (/account/profile), Adreslerim (/account/addresses), Siparişlerim (/account/orders), Destek (/account/support), Çıkış Yap
@@ -33,7 +33,7 @@ npm run dev
 - Siparişlerim (/account/orders): eski siparişler + detay
 
 ## Yönetim paneli (/admin, sadece admin)
-- Ürünler: liste, + Ürün Ekle (/admin/products/new), satıra tıkla düzenle, sağ altta sabit Kaydet, sil
+- Ürünler: liste, **Manuel** (tek tek form) / **Excel** (toplu içe aktarma) butonları, satıra tıkla düzenle, sağ altta sabit Kaydet, sil
 - Siparişler: no, ad soyad, adres, adet, toplam, durum; detayda ürünler + adres + durum değiştirme
 - Kategoriler / Markalar: liste + + ile ekleme, düzenle, sil
 - Müşteriler: üye listesi (sipariş sayısı, harcama), detayda bilgiler + adresler + eski siparişler

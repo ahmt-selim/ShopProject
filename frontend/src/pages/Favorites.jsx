@@ -1,13 +1,12 @@
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Layout from '../components/Layout';
+import AddToCartButton from '../components/AddToCartButton';
 import { useAuth } from '../store/AuthContext';
-import { useCart } from '../store/CartContext';
 import { useFavorites } from '../store/FavoritesContext';
 
 export default function Favorites() {
   const { user } = useAuth();
-  const { add } = useCart();
   const { favorites, toggleFavorite } = useFavorites();
 
   return (
@@ -25,7 +24,7 @@ export default function Favorites() {
                 <Link to={`/product/${p.id}`} className="card-title">{p.name}</Link>
                 <div className="card-price">{Number(p.price).toLocaleString('tr-TR')} ₺</div>
                 <div className="row">
-                  <button className="btn grow" onClick={() => add(p)}>Sepete Ekle</button>
+                  <AddToCartButton product={p} />
                   <button className="hbtn" onClick={() => toggleFavorite(p).catch((e) => alert(e.message))}>Kaldır</button>
                 </div>
               </div>

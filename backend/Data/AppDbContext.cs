@@ -15,6 +15,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ImportTemplate> ImportTemplates => Set<ImportTemplate>();
+    public DbSet<Cart> Carts => Set<Cart>();
+    public DbSet<CartItem> CartItems => Set<CartItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +28,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne<Product>()
             .WithMany()
             .HasForeignKey(i => i.ProductId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Cart>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .HasPrincipalKey(u => u.Id)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<CartItem>()
+            .HasOne<Cart>()
+            .WithMany()
+            .HasForeignKey(i => i.CartId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 

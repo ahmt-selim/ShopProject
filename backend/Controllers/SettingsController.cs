@@ -15,11 +15,15 @@ public class SettingsController(AppDbContext db) : ControllerBase
         var map = db.Settings.ToDictionary(s => s.Key, s => s.Value);
         string Get(string k, string fallback = "") =>
             map.TryGetValue(k, out var v) ? v : fallback;
+        decimal.TryParse(Get("freeShippingLimit", "0"),
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var limit);
         return Ok(new
         {
             storeName = Get("storeName", "MiniShop"),
             announcement = Get("announcement"),
-            currency = Get("currency", "₺")
+            currency = Get("currency", "₺"),
+            freeShippingLimit = limit
         });
     }
 
