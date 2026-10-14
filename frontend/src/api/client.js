@@ -45,6 +45,17 @@ export const api = {
   getBrands: () => request('/api/brands'),
   getPublicSettings: () => request('/api/settings/public'),
 
+  _publicCache: null,
+  publicSettings() {
+    if (!this._publicCache) this._publicCache = this.getPublicSettings().catch(() => ({}));
+    return this._publicCache;
+  },
+  freeShipping: async (price) => {
+    const s = await api.publicSettings();
+    const limit = Number(s.freeShippingLimit || 0);
+    return limit > 0 && Number(price) >= limit;
+  },
+
   getProductImages: (productId) => request(`/api/products/${productId}/images`),
   addProductImage: (productId, url) =>
     request(`/api/products/${productId}/images`, { method: 'POST', body: JSON.stringify({ url }) }),
@@ -81,6 +92,14 @@ export const api = {
   addFavorite: (productId) =>
     request('/api/favorites', { method: 'POST', body: JSON.stringify({ productId }) }),
   removeFavorite: (productId) => request(`/api/favorites/${productId}`, { method: 'DELETE' }),
+
+  getCart: () => request('/api/cart'),
+  addCartItem: (productId, qty) =>
+    request('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, qty }) }),
+  setCartItem: (productId, qty) =>
+    request(`/api/cart/items/${productId}`, { method: 'PUT', body: JSON.stringify({ productId, qty }) }),
+  removeCartItem: (productId) => request(`/api/cart/items/${productId}`, { method: 'DELETE' }),
+  clearCart: () => request('/api/cart', { method: 'DELETE' }),
 
   createProduct: (data) =>
     request('/api/products', { method: 'POST', body: JSON.stringify(data) }),
@@ -121,6 +140,28 @@ export const api = {
     form.append('file', file);
     const data = await request('/api/upload', { method: 'POST', body: form });
     return fullUrl(data.url);
+  },
+
+  getImportTemplates: () => request('/api/importtemplates'),
+  saveImportTemplate: (name, mappings, startRow) =>
+    request('/api/importtemplates', { method: 'POST', body: JSON.stringify({ name, mappings, startRow }) }),
+  updateImportTemplate: (id, name, mappings, startRow) =>
+    request(`/api/importtemplates/${id}`, { method: 'PUT', body: JSON.stringify({ name, mappings, startRow }) }),
+  deleteImportTemplate: (id) => request(`/api/importtemplates/${id}`, { method: 'DELETE' }),
+  importProducts: async (file, { templateId, mappings, startRow }) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (templateId) form.append('templateId', templateId);
+    if (mappings) form.append('mappings', JSON.stringify(mappings));
+    if (startRow) form.append('startRow', startRow);
+    const res = await fetch(`${BASE_URL}/api/products/import`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+    return data;
   },
 
   imageUrl: fullUrl,

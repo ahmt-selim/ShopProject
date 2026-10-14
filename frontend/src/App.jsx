@@ -17,6 +17,7 @@ import MyOrders from './pages/MyOrders';
 import MyOrderDetail from './pages/MyOrderDetail';
 import AdminLayout from './components/AdminLayout';
 import AdminProducts from './pages/admin/Products';
+import ProductImport from './pages/admin/ProductImport';
 import ProductForm from './pages/admin/ProductForm';
 import AdminOrders from './pages/admin/Orders';
 import AdminOrderDetail from './pages/admin/OrderDetail';
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="products" replace />} />
                 <Route path="products" element={<AdminProducts />} />
+                <Route path="products/import" element={<ProductImport />} />
                 <Route path="products/new" element={<ProductForm />} />
                 <Route path="products/:id" element={<ProductForm />} />
                 <Route path="orders" element={<AdminOrders />} />
