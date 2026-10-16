@@ -118,6 +118,8 @@ public sealed class PasswordResetService(
         var (hash, salt) = PasswordHasher.Hash(newPassword!);
         user.PasswordHash = hash;
         user.PasswordSalt = salt;
+        // Eski JWT'leri geçersiz kıl (OnTokenValidated tv karşılaştırır).
+        user.TokenVersion++;
 
         // Başarılı reset sonrası kalan kullanılmamış kodların tümü iptal.
         await db.PasswordResetTokens

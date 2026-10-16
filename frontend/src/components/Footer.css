@@ -72,17 +72,42 @@
   font-weight: 700;
 }
 
-.footer-wa {
-  display: inline-block;
-  background: #1faa55;
-  color: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  border-radius: var(--radius);
-  padding: 10px 16px;
+.footer-social-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.footer-wa:hover {
+.footer-wa,
+.footer-insta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius);
+  color: #fff;
+}
+
+.footer-wa svg,
+.footer-insta svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.footer-wa {
+  background: #1faa55;
+}
+
+.footer-insta {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.footer-wa:hover,
+.footer-insta:hover {
   filter: brightness(1.08);
 }
 

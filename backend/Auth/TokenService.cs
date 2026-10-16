@@ -20,6 +20,7 @@ public class TokenService(IConfiguration config)
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim("role", user.Role),
+            new Claim("tv", user.TokenVersion.ToString()),
         };
 
         var creds = new SigningCredentials(
