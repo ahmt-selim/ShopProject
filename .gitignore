@@ -4,6 +4,7 @@ backend/obj/
 backend/publish*/
 frontend/dist/
 frontend/dist-ssr/
+*.rar
 
 # Çalışma anında üretilen veriler (kod değil)
 backend/shop.db*
