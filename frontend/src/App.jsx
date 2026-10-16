@@ -13,6 +13,8 @@ import Addresses from './pages/Addresses';
 import Support from './pages/Support';
 import Favorites from './pages/Favorites';
 import Checkout from './pages/Checkout';
+import InfoPage from './pages/InfoPage';
+import OrderTrack from './pages/OrderTrack';
 import MyOrders from './pages/MyOrders';
 import MyOrderDetail from './pages/MyOrderDetail';
 import AdminLayout from './components/AdminLayout';
@@ -46,7 +48,10 @@ export default function App() {
               <Route path="/account/orders" element={<MyOrders />} />
               <Route path="/account/orders/:id" element={<MyOrderDetail />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/siparis-takip" element={<OrderTrack />} />
               <Route path="/favorites" element={<Favorites />} />
+              <Route path="/info/:slug" element={<InfoPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="products" replace />} />
                 <Route path="products" element={<AdminProducts />} />

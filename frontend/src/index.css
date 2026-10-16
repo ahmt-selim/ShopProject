@@ -234,6 +234,8 @@ a { color: inherit; text-decoration: none; }
 .qty { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .qty button { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
 .link { background: none; border: none; color: var(--muted); cursor: pointer; }
+.breadcrumb { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+.breadcrumb a:hover { text-decoration: underline; }
 .page-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .page-head h2, .page-head h3 { margin: 0; }
 .account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }

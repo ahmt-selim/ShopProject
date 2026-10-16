@@ -40,7 +40,6 @@ export default function Login() {
     <Layout>
       <div className="form-wrap">
         <h2>Giriş Yap</h2>
-        <p className="muted">Admin test: admin@shop.com / Admin123!</p>
         {error && <div className="error">{error}</div>}
         <form onSubmit={submit} className="form">
           <label>E-posta<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>

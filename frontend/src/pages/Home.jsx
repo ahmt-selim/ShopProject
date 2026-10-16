@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Layout from '../components/Layout';
 import Sidebar from '../components/Sidebar';
@@ -8,9 +9,13 @@ import Pagination from '../components/Pagination';
 const PAGE_SIZE = 20;
 
 export default function Home() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(() => {
+    const c = Number(searchParams.get('category'));
+    return c > 0 ? c : null;
+  });
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -20,6 +25,13 @@ export default function Home() {
   useEffect(() => {
     api.getCategories().then(setCategories).catch(console.error);
   }, []);
+
+  // Footer'daki kategori linkleri (/?category=ID) ile senkron kal.
+  useEffect(() => {
+    const c = Number(searchParams.get('category'));
+    setSelected(c > 0 ? c : null);
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     setLoading(true);
@@ -41,8 +53,16 @@ export default function Home() {
     window.scrollTo(0, 0);
   };
 
+  const selectCategory = (id) => {
+    setSelected(id);
+    setPage(1);
+    setSearchParams(id ? { category: String(id) } : {});
+  };
+
   return (
-    <Layout sidebar={<Sidebar categories={categories} selected={selected} onSelect={(id) => { setSelected(id); setPage(1); }} />}>
+    <Layout
+      sidebar={<Sidebar categories={categories} selected={selected} onSelect={selectCategory} />}
+    >
       <h2>Anasayfa - Ürünler</h2>
       <input
         className="search-input"
