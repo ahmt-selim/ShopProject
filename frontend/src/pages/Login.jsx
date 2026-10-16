@@ -10,7 +10,7 @@ export function PasswordField({ value, onChange, label }) {
     <label>{label || 'Şifre'}
       <span className="pw-wrap">
         <input type={show ? 'text' : 'password'} value={value} onChange={onChange} required />
-        <button type="button" className="pw-toggle" onClick={() => setShow((s) => !s)} title={show ? 'Gizle' : 'Göster'}>
+        <button type="button" className="pw-toggle" onClick={() => setShow((s) => !s)} title={show ? 'Gizle' : 'Göster'} aria-label={show ? 'Şifreyi gizle' : 'Şifreyi göster'}>
           {show ? <IconEyeOff /> : <IconEye />}
         </button>
       </span>
@@ -46,6 +46,9 @@ export default function Login() {
           <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} />
           <button className="btn" type="submit">Giriş Yap</button>
         </form>
+        <p>
+          <Link to="/forgot-password">Şifremi unuttum</Link>
+        </p>
         <p>Hesabın yok mu? <Link to="/register">Kayıt Ol</Link></p>
       </div>
     </Layout>

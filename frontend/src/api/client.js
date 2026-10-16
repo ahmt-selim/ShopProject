@@ -100,6 +100,12 @@ export const api = {
   me: () => request('/api/auth/me'),
   updateProfile: (data) =>
     request('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+  forgotPassword: (email) =>
+    request('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: ({ email, code, newPassword }) =>
+    request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) }),
+  verifyResetCode: ({ email, code }) =>
+    request('/api/auth/verify-reset-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
 
   getAddresses: () => request('/api/addresses'),
   addAddress: (data) =>

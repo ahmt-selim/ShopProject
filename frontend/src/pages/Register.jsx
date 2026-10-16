@@ -31,7 +31,7 @@ export default function Register() {
         <form onSubmit={submit} className="form">
           <label>Ad Soyad<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Adın" /></label>
           <label>E-posta<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} label="Şifre (min 6)" />
+          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} label="Şifre (min 8)" />
           <button className="btn" type="submit">Kayıt Ol</button>
         </form>
         <p>Zaten üye misin? <Link to="/login">Giriş Yap</Link></p>
