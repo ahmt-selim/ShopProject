@@ -107,6 +107,34 @@ public class OrdersController(AppDbContext db) : ControllerBase
         return Ok(ToDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null));
     }
 
+    // Üye girişi olmadan sipariş takibi: sipariş no + e-posta eşleşirse kısıtlı bilgi döner.
+    [AllowAnonymous]
+    [HttpGet("track")]
+    public ActionResult<object> Track([FromQuery] string? orderNo, [FromQuery] string? email)
+    {
+        orderNo = (orderNo ?? "").Trim();
+        email = (email ?? "").Trim();
+        if (orderNo.Length == 0 || email.Length == 0)
+            return BadRequest(new { error = "Sipariş numarası ve e-posta gerekli." });
+        var o = db.Orders.FirstOrDefault(x => x.OrderNo == orderNo);
+        if (o is null || !string.Equals((o.CustomerEmail ?? "").Trim(), email,
+                StringComparison.OrdinalIgnoreCase))
+            return NotFound(new { error = "Sipariş bulunamadı. Bilgileri kontrol edin." });
+        var items = db.OrderItems.Where(i => i.OrderId == o.Id).ToList();
+        return Ok(new
+        {
+            o.OrderNo,
+            o.Status,
+            o.CreatedAt,
+            o.ItemsCount,
+            o.Subtotal,
+            o.Shipping,
+            o.Total,
+            city = o.AddressCity,
+            items = items.Select(i => new { i.ProductName, i.Price, i.Qty, i.ImageUrl })
+        });
+    }
+
     [Authorize(Roles = "admin")]
     [HttpGet]
     public ActionResult<object> All([FromQuery] int? page, [FromQuery] int? pageSize)

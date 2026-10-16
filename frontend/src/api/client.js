@@ -142,7 +142,9 @@ export const api = {
   checkout: (addressId, items) =>
     request('/api/orders/checkout', { method: 'POST', body: JSON.stringify({ addressId, items }) }),
   getMyOrders: () => request('/api/orders/mine'),
-  getMyOrder: (id) => request(`/api/orders/mine/${id}`),  getOrders: (page, pageSize) => {
+  getMyOrder: (id) => request(`/api/orders/mine/${id}`),
+  trackOrder: (orderNo, email) =>
+    request(`/api/orders/track?orderNo=${encodeURIComponent(orderNo)}&email=${encodeURIComponent(email)}`),  getOrders: (page, pageSize) => {
     const qs = page ? `?page=${page}&pageSize=${pageSize || 20}` : '';
     return request(`/api/orders${qs}`);
   },
