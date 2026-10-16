@@ -1,0 +1,20 @@
+# Build çıktıları
+backend/bin/
+backend/obj/
+frontend/dist/
+frontend/dist-ssr/
+
+# Çalışma anında üretilen veriler (kod değil)
+backend/shop.db*
+backend/logs/
+backend/wwwroot/uploads/
+backend/App_Data/
+
+# Bağımlılıklar
+frontend/node_modules/
+
+# OS / editör
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
