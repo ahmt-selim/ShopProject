@@ -85,11 +85,14 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: var(--radius);
-  color: #fff;
+  width: auto;
+  height: auto;
+  padding: 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 1;
 }
 
 .footer-wa svg,
@@ -98,17 +101,10 @@
   flex-shrink: 0;
 }
 
-.footer-wa {
-  background: #1faa55;
-}
-
-.footer-insta {
-  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-}
-
 .footer-wa:hover,
 .footer-insta:hover {
-  filter: brightness(1.08);
+  opacity: 0.8;
+  background: transparent;
 }
 
 .footer-note {
