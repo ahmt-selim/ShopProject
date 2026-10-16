@@ -39,6 +39,11 @@ npm run dev
 - Müşteriler: üye listesi (sipariş sayısı, harcama), detayda bilgiler + adresler + eski siparişler
 - Ayarlar: mağaza adı, duyuru, para birimi, KDV, kargo limiti/ücreti, destek iletişim, bakım modu
 
+## Müşteri yorumları
+- Ürün kartlarında ve ürün sayfasında ortalama puan (yıldız) + yorum sayısı.
+- Ürün sayfası altında Müşteri Yorumları: puan özeti, dağılım çubukları (tıkla filtrele), sıralama, sadece resimli filtresi, resim galerisi.
+- Yorum yazma sadece Siparişlerim -> sipariş detayından, teslim edilmiş ürünlere (ürün başına 1 yorum, en fazla 5 resim). Düzenleme/silme: sipariş detayı veya ürün sayfasındaki kendi yorumu.
+
 ## API
 - GET /api/products?categoryId=&brandId=&q= (q: ad, kod, barkod arar), GET /api/products/{id}, POST/PUT/DELETE (admin)
   - Ürün: name, description, price, productCode, barcode, vatRate, categoryId, brandId, stock + images:[{id,url}]
@@ -47,8 +52,9 @@ npm run dev
 - POST /api/auth/register, /api/auth/login, GET /api/auth/me, PUT /api/auth/profile
 - CRUD /api/addresses, /api/favorites (giriş gerekli)
 - POST /api/orders/checkout, GET /api/orders/mine(+/{id}), GET /api/orders(+/{id}), PUT /api/orders/{id}/status (admin)
+- GET /api/products/{id}/reviews (+/summary, +/eligibility, +/mine), POST (multipart resimli), PUT/DELETE /api/reviews/{id} (sahibi; silmede admin de)
 - GET /api/customers(+/{id}) (admin)
 - GET /api/settings/public, GET/PUT /api/settings (admin)
 - POST /api/upload (admin, dosya max 5MB) -> /uploads/...
 
-Tablolar: Products (productCode, barcode, vatRate), ProductImages (productId->url), Categories, Brands, Users, Addresses, Favorites, Orders, OrderItems, Settings.
+Tablolar: Products (productCode, barcode, vatRate, averageRating, reviewCount), ProductImages (productId->url), Reviews (+ReviewImages), Categories, Brands, Users, Addresses, Favorites, Orders, OrderItems, Settings.
