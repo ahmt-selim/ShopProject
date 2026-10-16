@@ -1,16 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, statusClass } from '../../api/client';
+import Pagination from '../../components/Pagination';
+
+const PAGE_SIZE = 20;
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const navigate = useNavigate();
 
-  useEffect(() => { api.getOrders().then(setOrders).catch(console.error); }, []);
+  useEffect(() => {
+    api.getOrders(page, PAGE_SIZE)
+      .then((res) => {
+        setOrders(res.items || []);
+        setTotal(res.total || 0);
+        setTotalPages(res.totalPages || 1);
+      })
+      .catch(console.error);
+  }, [page]);
 
   return (
     <>
-      <h2>Siparişler ({orders.length})</h2>
+      <h2>Siparişler ({total})</h2>
       <div className="table-wrap">
         <table className="table">
           <thead>
@@ -31,6 +45,7 @@ export default function AdminOrders() {
         </table>
       </div>
       {orders.length === 0 && <p className="muted">Henüz sipariş yok.</p>}
+      <Pagination page={page} totalPages={totalPages} onChange={(n) => { setPage(n); window.scrollTo(0, 0); }} />
     </>
   );
 }

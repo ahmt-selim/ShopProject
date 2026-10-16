@@ -12,16 +12,38 @@ public class CategoriesController(AppDbContext db) : ControllerBase
     public record CategoryDto(string Name);
 
     [HttpGet]
-    public ActionResult<IEnumerable<object>> GetAll()
+    public ActionResult<object> GetAll([FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var result = db.Categories.ToList().Select(c => new
+        var query = db.Categories.OrderBy(c => c.Id).AsQueryable();
+        if (!page.HasValue)
+        {
+            var all = query.ToList().Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.Slug,
+                productCount = db.Products.Count(p => p.CategoryId == c.Id)
+            });
+            return Ok(all);
+        }
+        var size = Math.Clamp(pageSize ?? 50, 1, 100);
+        var p = Math.Max(page.Value, 1);
+        var total = query.Count();
+        var items = query.Skip((p - 1) * size).Take(size).ToList().Select(c => new
         {
             c.Id,
             c.Name,
             c.Slug,
             productCount = db.Products.Count(p => p.CategoryId == c.Id)
         });
-        return Ok(result);
+        return Ok(new
+        {
+            items,
+            total,
+            page = p,
+            pageSize = size,
+            totalPages = (int)Math.Ceiling(total / (double)size)
+        });
     }
 
     [Authorize(Roles = "admin")]

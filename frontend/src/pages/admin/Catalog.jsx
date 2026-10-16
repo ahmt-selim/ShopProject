@@ -1,14 +1,34 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import Pagination from '../../components/Pagination';
+
+const PAGE_SIZE = 20;
 
 function useCrud(loadFn, createFn, updateFn, deleteFn) {
   const [list, setList] = useState([]);
   const [name, setName] = useState('');
   const [editing, setEditing] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [msg, setMsg] = useState('');
 
-  const load = () => loadFn().then(setList).catch(console.error);
-  useEffect(() => { load(); }, []);
+  const load = (p) => loadFn(p ?? page, PAGE_SIZE)
+    .then((res) => {
+      if (Array.isArray(res)) {
+        setList(res);
+        setTotal(res.length);
+        setTotalPages(1);
+      } else {
+        setList(res.items || []);
+        setTotal(res.total || 0);
+        setTotalPages(res.totalPages || 1);
+      }
+    })
+    .catch(console.error);
+  useEffect(() => { load(1); }, []);
+
+  const goPage = (n) => { setPage(n); load(n); window.scrollTo(0, 0); };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -34,14 +54,14 @@ function useCrud(loadFn, createFn, updateFn, deleteFn) {
     }
   };
 
-  return { list, name, setName, editing, setEditing, msg, submit, remove, load };
+  return { list, name, setName, editing, setEditing, msg, submit, remove, load, page, totalPages, total, goPage };
 }
 
 export function AdminCategories() {
   const c = useCrud(api.getCategories, api.createCategory, api.updateCategory, api.deleteCategory);
   return (
     <>
-      <h2>Kategoriler ({c.list.length})</h2>
+      <h2>Kategoriler ({c.total})</h2>
       {c.msg && <div className="error">{c.msg}</div>}
       <form onSubmit={c.submit} className="form inline-form">
         <input value={c.name} onChange={(e) => c.setName(e.target.value)} placeholder="Kategori adı" required />
@@ -63,6 +83,7 @@ export function AdminCategories() {
           </tbody>
         </table>
       </div>
+      <Pagination page={c.page} totalPages={c.totalPages} onChange={c.goPage} />
     </>
   );
 }
@@ -71,7 +92,7 @@ export function AdminBrands() {
   const b = useCrud(api.getBrands, api.createBrand, api.updateBrand, api.deleteBrand);
   return (
     <>
-      <h2>Markalar ({b.list.length})</h2>
+      <h2>Markalar ({b.total})</h2>
       {b.msg && <div className="error">{b.msg}</div>}
       <form onSubmit={b.submit} className="form inline-form">
         <input value={b.name} onChange={(e) => b.setName(e.target.value)} placeholder="Marka adı" required />
@@ -93,6 +114,7 @@ export function AdminBrands() {
           </tbody>
         </table>
       </div>
+      <Pagination page={b.page} totalPages={b.totalPages} onChange={b.goPage} />
     </>
   );
 }
