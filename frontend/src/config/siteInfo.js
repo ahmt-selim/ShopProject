@@ -13,7 +13,7 @@ export const siteInfo = {
   email: env.VITE_CONTACT_EMAIL || 'info@ornek.com',
   workingHours: env.VITE_CONTACT_HOURS || 'Hafta içi 09.00 – 18.00',
   social: {
-    instagram: '#',
+    instagram: env.VITE_CONTACT_INSTAGRAM || '#',
     facebook: '#',
     x: '#',
     youtube: '#',

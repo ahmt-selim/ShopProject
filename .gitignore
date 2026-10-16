@@ -9,6 +9,7 @@ backend/shop.db*
 backend/logs/
 backend/wwwroot/uploads/
 backend/App_Data/
+backend/db-backup-*/
 
 # Bağımlılıklar
 frontend/node_modules/

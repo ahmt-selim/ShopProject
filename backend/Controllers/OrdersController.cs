@@ -3,6 +3,7 @@ using Backend.Data;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
@@ -110,6 +111,7 @@ public class OrdersController(AppDbContext db) : ControllerBase
     // Üye girişi olmadan sipariş takibi: sipariş no + e-posta eşleşirse kısıtlı bilgi döner.
     [AllowAnonymous]
     [HttpGet("track")]
+    [EnableRateLimiting("orders-track")]
     public ActionResult<object> Track([FromQuery] string? orderNo, [FromQuery] string? email)
     {
         orderNo = (orderNo ?? "").Trim();

@@ -12,6 +12,14 @@ public class ProductImagesController(AppDbContext db, IWebHostEnvironment env) :
     public record ImageDto(string Url);
 
     private static readonly string[] Allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    private static readonly Dictionary<string, string> ContentTypeByExtension = new()
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".webp"] = "image/webp",
+        [".gif"] = "image/gif",
+    };
     private const long MaxBytes = 5 * 1024 * 1024;
 
     [HttpGet]
@@ -41,12 +49,20 @@ public class ProductImagesController(AppDbContext db, IWebHostEnvironment env) :
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!Allowed.Contains(ext))
                 return BadRequest(new { error = "Sadece jpg, png, webp, gif yüklenebilir." });
+            if (!string.IsNullOrWhiteSpace(file.ContentType) &&
+                !file.ContentType.Equals(ContentTypeByExtension[ext], StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { error = "Dosya içeriği uzantıyla eşleşmiyor." });
+
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            if (!HasImageSignature(bytes, ext))
+                return BadRequest(new { error = "Dosya içeriği resim formatıyla eşleşmiyor." });
 
             var dir = Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"), "uploads");
             Directory.CreateDirectory(dir);
             var name = $"{Guid.NewGuid():N}{ext}";
-            await using var stream = System.IO.File.Create(Path.Combine(dir, name));
-            await file.CopyToAsync(stream);
+            await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, name), bytes);
             url = $"/uploads/{name}";
         }
         else
@@ -58,7 +74,11 @@ public class ProductImagesController(AppDbContext db, IWebHostEnvironment env) :
         if (string.IsNullOrWhiteSpace(url))
             return BadRequest(new { error = "Resim URL'i zorunlu." });
 
-        var img = new ProductImage { ProductId = productId, Url = url.Trim() };
+        url = url.Trim();
+        if (!IsAllowedImageUrl(url))
+            return BadRequest(new { error = "Resim URL'i geçersiz." });
+
+        var img = new ProductImage { ProductId = productId, Url = url };
         db.ProductImages.Add(img);
         db.SaveChanges();
         return Ok(new { img.Id, img.ProductId, img.Url });
@@ -77,12 +97,46 @@ public class ProductImagesController(AppDbContext db, IWebHostEnvironment env) :
         {
             try
             {
-                var path = Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),
-                    img.Url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-                if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+                var relative = img.Url.TrimStart('/');
+                // '..' ile dizin dışına kaçışı engelle.
+                if (!relative.Contains(".."))
+                {
+                    var path = Path.Combine(env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot"),
+                        relative.Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+                }
             }
             catch { /* dosya silinemezse kayda devam */ }
         }
         return NoContent();
     }
+
+    // Harici URL yalnızca http(s), yerel path yalnızca /uploads/ altında olmalı.
+    // javascript:/data:/vbscript: gibi şemalar reddedilir (stored-XSS zemini).
+    private static bool IsAllowedImageUrl(string url)
+    {
+        if (url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            return !url.Contains("..");
+        return url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasImageSignature(byte[] content, string extension) => extension switch
+    {
+        ".jpg" or ".jpeg" => content.Length >= 3 &&
+            content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF,
+        ".png" => content.Length >= 8 &&
+            content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47 &&
+            content[4] == 0x0D && content[5] == 0x0A && content[6] == 0x1A && content[7] == 0x0A,
+        ".webp" => content.Length >= 12 &&
+            content[0] == (byte)'R' && content[1] == (byte)'I' &&
+            content[2] == (byte)'F' && content[3] == (byte)'F' &&
+            content[8] == (byte)'W' && content[9] == (byte)'E' &&
+            content[10] == (byte)'B' && content[11] == (byte)'P',
+        ".gif" => content.Length >= 6 &&
+            content[0] == (byte)'G' && content[1] == (byte)'I' && content[2] == (byte)'F' &&
+            content[3] == (byte)'8' && (content[4] == (byte)'7' || content[4] == (byte)'9') &&
+            content[5] == (byte)'a',
+        _ => false,
+    };
 }

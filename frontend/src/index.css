@@ -41,6 +41,7 @@ a { color: inherit; text-decoration: none; }
 }
 .hbtn.primary { background: var(--primary); color: var(--primary-text); border: none; }
 .hbtn:hover { background: var(--bg); filter: brightness(0.92); }
+.hbtn.primary:hover { background: var(--primary); color: var(--primary-text); filter: brightness(0.92); }
 .edit-link { display: inline-flex; align-items: center; gap: 6px; }
 .edit-link:hover { background: var(--bg); filter: brightness(0.92); }
 .icon-btn {

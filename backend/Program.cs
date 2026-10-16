@@ -54,6 +54,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
+    // Gerçek proxy IP'leri ForwardedHeaders:KnownProxies ile verilir
+    // (prod varsayılanı 127.0.0.1: nginx aynı makinede). Liste boşsa tüm
+    // X-Forwarded-For değerlerine güvenilir ve IP limiti atlatılabilir.
+    foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+        if (System.Net.IPAddress.TryParse(proxy, out var ip))
+            options.KnownProxies.Add(ip);
 });
 
 // Yorum oluşturma: kullanıcı Id'sine göre partition (anonim istek IP'ye göre).
@@ -124,6 +130,16 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true,
         }));
+    // Anonim sipariş takibi: sıralı sipariş no taramasına karşı (IP bazlı).
+    options.AddPolicy("orders-track", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        $"track:ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        }));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -167,6 +183,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             RoleClaimType = System.Security.Claims.ClaimTypes.Role,
         };
+        // Şifre sıfırlanınca User.TokenVersion artar; eski token burda elenir.
+        // tv claim'i olmayan eski tokenlar da reddedilir (tek seferlik relogin).
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                var sub = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                    ?? context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                var tv = context.Principal?.FindFirst("tv")?.Value;
+                if (sub is null || tv is null || !int.TryParse(tv, out var version))
+                {
+                    context.Fail("Token geçersiz.");
+                    return Task.CompletedTask;
+                }
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var current = db.Users.AsNoTracking().FirstOrDefault(u => u.Id == sub);
+                if (current is null || current.TokenVersion != version)
+                    context.Fail("Token geçersiz.");
+                return Task.CompletedTask;
+            }
+        };
     });
 builder.Services.AddAuthorization();
 
@@ -196,7 +233,7 @@ app.Use(async (context, next) =>
 {
     context.Response.Headers.XContentTypeOptions = "nosniff";
     context.Response.Headers.XFrameOptions = "DENY";
-    context.Response.Headers.ReferrerPolicy = "no-referrer";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
     await next();
 });
 
@@ -256,6 +293,10 @@ app.MapGet("/", () => Results.Ok(new { name = "E-Ticaret API", version = "4.0", 
         else
             app.Logger.LogError("Email SMTP ayarı eksik (Production): e-posta gönderimi DEVRE DIŞI. Email__Password ortam değişkenini ve Email:* ayarlarını girin.");
     }
+    // ForwardedHeaders proxy listesi boşsa IP rate-limit XFF spoof ile atlatılabilir.
+    var knownProxies = app.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+    if (!app.Environment.IsDevelopment() && knownProxies.Length == 0)
+        app.Logger.LogWarning("ForwardedHeaders:KnownProxies boş (Production): X-Forwarded-For spoof ile IP limiti atlatılabilir. Gerçek proxy IP'sini yazın.");
 }
 
 app.Run();

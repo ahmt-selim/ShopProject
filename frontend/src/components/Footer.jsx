@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { siteInfo } from '../config/siteInfo';
+import { IconInstagram, IconWhatsApp } from './icons';
 import './Footer.css';
 
 const corporateLinks = [
@@ -103,15 +104,26 @@ export default function Footer() {
           <p className="footer-phone">
             <a href={phoneHref}>{siteInfo.phone}</a>
           </p>
-          <a
-            href={siteInfo.whatsapp}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="footer-wa"
-            aria-label="WhatsApp ile destek alın"
-          >
-            WhatsApp Destek
-          </a>
+          <div className="footer-social-row">
+            <a
+              href={siteInfo.whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-wa"
+              aria-label="WhatsApp ile destek alın"
+            >
+              <IconWhatsApp />
+            </a>
+            <a
+              href={siteInfo.social?.instagram || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-insta"
+              aria-label="Instagram'da takip edin"
+            >
+              <IconInstagram />
+            </a>
+          </div>
         </div>
 
         <nav aria-label="Kurumsal" className="footer-col">
