@@ -7,6 +7,11 @@ export default function Sidebar({ categories, selected, onSelect }) {
 
   return (
     <aside className="sidebar">
+      {isAdmin && (
+        <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
+          Yönetim Paneli
+        </button>
+      )}
       <h3>Kategoriler</h3>
       <ul>
         <li>
@@ -28,11 +33,6 @@ export default function Sidebar({ categories, selected, onSelect }) {
           </li>
         ))}
       </ul>
-      {isAdmin && (
-        <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
-          Yönetim Paneli
-        </button>
-      )}
     </aside>
   );
 }

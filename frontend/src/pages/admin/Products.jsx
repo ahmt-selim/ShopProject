@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
+import Pagination from '../../components/Pagination';
 
 // Yeni ekleme yöntemi buraya tek satırla eklenir
 const ADD_METHODS = [
@@ -8,19 +9,33 @@ const ADD_METHODS = [
   { id: 'excel', label: 'Excel', to: '/admin/products/import' },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
+  const fetchProducts = (p, query) =>
+    api.getProducts(undefined, query || undefined, p, PAGE_SIZE)
+      .then((res) => {
+        setProducts(res.items || []);
+        setTotal(res.total || 0);
+        setTotalPages(res.totalPages || 1);
+      })
+      .catch(console.error);
+
   useEffect(() => {
     const t = setTimeout(() => {
-      api.getProducts(undefined, q.trim() || undefined).then(setProducts).catch(console.error);
+      fetchProducts(page, q.trim());
     }, 300);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, page]);
 
   useEffect(() => {
     const close = (e) => {
@@ -37,12 +52,12 @@ export default function AdminProducts() {
     };
   }, []);
 
-  const load = () => api.getProducts(undefined, q.trim() || undefined).then(setProducts).catch(console.error);
+  const load = () => fetchProducts(page, q.trim());
 
   return (
     <>
       <div className="page-head">
-        <h2>Ürünler ({products.length})</h2>
+        <h2>Ürünler ({total})</h2>
         <div className="menu-wrap" ref={menuRef}>
           <button className="btn" onClick={() => setMenuOpen((o) => !o)}>+ Ürün Ekle</button>
           {menuOpen && (
@@ -57,7 +72,7 @@ export default function AdminProducts() {
       <input
         className="search-input"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Ürün adı, kodu veya barkod ile ara..."
       />
       <div className="table-wrap">
@@ -82,6 +97,7 @@ export default function AdminProducts() {
         </table>
       </div>
       <p className="muted">Düzenlemek için satıra tıklayın.</p>
+      <Pagination page={page} totalPages={totalPages} onChange={(n) => { setPage(n); window.scrollTo(0, 0); }} />
     </>
   );
 }

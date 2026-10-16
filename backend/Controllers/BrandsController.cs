@@ -12,16 +12,38 @@ public class BrandsController(AppDbContext db) : ControllerBase
     public record BrandDto(string Name);
 
     [HttpGet]
-    public ActionResult<IEnumerable<object>> GetAll()
+    public ActionResult<object> GetAll([FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var result = db.Brands.ToList().Select(b => new
+        var query = db.Brands.OrderBy(b => b.Id).AsQueryable();
+        if (!page.HasValue)
+        {
+            var all = query.ToList().Select(b => new
+            {
+                b.Id,
+                b.Name,
+                b.Slug,
+                productCount = db.Products.Count(p => p.BrandId == b.Id)
+            });
+            return Ok(all);
+        }
+        var size = Math.Clamp(pageSize ?? 50, 1, 100);
+        var p = Math.Max(page.Value, 1);
+        var total = query.Count();
+        var items = query.Skip((p - 1) * size).Take(size).ToList().Select(b => new
         {
             b.Id,
             b.Name,
             b.Slug,
             productCount = db.Products.Count(p => p.BrandId == b.Id)
         });
-        return Ok(result);
+        return Ok(new
+        {
+            items,
+            total,
+            page = p,
+            pageSize = size,
+            totalPages = (int)Math.Ceiling(total / (double)size)
+        });
     }
 
     [Authorize(Roles = "admin")]
