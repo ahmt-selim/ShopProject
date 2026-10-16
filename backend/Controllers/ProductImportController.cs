@@ -122,9 +122,11 @@ public class ProductImportController(AppDbContext db, IWebHostEnvironment env) :
                 return cols.TryGetValue(field, out var c) ? ws.Cell(r, c).GetString().Trim() : "";
             }
 
+            // Hata mesajında hangi satırın hangi eşleşme değeriyle patladığı görünsün.
+            var matchRaw = "";
             try
             {
-                var matchRaw = Cell(match);
+                matchRaw = Cell(match);
                 if (string.IsNullOrWhiteSpace(matchRaw)) continue; // eşleşme değeri boş satır atlanır
 
                 var existing = FindProduct(match, matchRaw);
@@ -242,7 +244,9 @@ public class ProductImportController(AppDbContext db, IWebHostEnvironment env) :
             }
             catch (Exception ex)
             {
-                errors.Add(new { row = r, error = ex.Message });
+                // Admin-only endpoint: SQLite'ın gerçek sebebi (constraint/kilit/disk)
+                // iç içe mesajlarda gizli, tamamını döndür.
+                errors.Add(new { row = r, key = matchRaw, error = FullError(ex) });
             }
         }
 
@@ -257,6 +261,16 @@ public class ProductImportController(AppDbContext db, IWebHostEnvironment env) :
             "barcode" => db.Products.FirstOrDefault(p => p.Barcode == raw),
             _ => db.Products.FirstOrDefault(p => p.ProductCode == raw),
         };
+    }
+
+    // İç içe exception zincirinin tamamı (örn. EF sarmalayıcı + SQLite sebebi).
+    private static string FullError(Exception ex)
+    {
+        var parts = new List<string>();
+        for (var e = ex; e is not null; e = e.InnerException)
+            if (!string.IsNullOrWhiteSpace(e.Message) && (parts.Count == 0 || parts[^1] != e.Message))
+                parts.Add(e.Message);
+        return string.Join(" | ", parts);
     }
 
     private static string NormalizeMatchBy(string? v) =>
