@@ -12,9 +12,8 @@ public static class ShopDbSeeder
 {
     public static void Seed(AppDbContext db)
     {
-        db.Database.EnsureCreated();
-        EnsureNewSchema(db);
-        MigrateProductImages(db);
+        // Şema DbMigrator.EnsureMigrated ile hazırlanır (Migrate + legacy damga).
+        // Bu metot sadece veri seedler.
 
         if (!db.Categories.Any())
         {
@@ -72,8 +71,8 @@ public static class ShopDbSeeder
 
         var defaults = new Dictionary<string, string>
         {
-            ["storeName"] = "MiniShop",
-            ["supportEmail"] = "destek@minishop.com",
+            ["storeName"] = "ihtiyacın3D",
+            ["supportEmail"] = "destek@ihtiyacin3d.com",
             ["supportPhone"] = "0850 000 00 00",
             ["storeAddress"] = "İstanbul, Türkiye",
             ["currency"] = "₺",
@@ -151,10 +150,10 @@ public static class ShopDbSeeder
 
         CreateOrder(db, demo, addr,
             [("Kablosuz Kulaklık", 1), ("Pamuk T-Shirt", 2)],
-            "Teslim Edildi", DateTime.UtcNow.AddDays(-6));
+            OrderStatuses.Delivered, DateTime.UtcNow.AddDays(-6));
         CreateOrder(db, demo, addr,
             [("Koşu Ayakkabısı", 1), ("Bluetooth Hoparlör", 1)],
-            "Kargoda", DateTime.UtcNow.AddDays(-1));
+            OrderStatuses.Shipping, DateTime.UtcNow.AddDays(-1));
     }
 
     private static void AddProductIfMissing(AppDbContext db, string name, string desc,
@@ -242,7 +241,8 @@ public static class ShopDbSeeder
     }
 
     // Mevcut shop.db dosyalarını yeni tablolara yükseltir (veri kaybı olmaz).
-    private static void EnsureNewSchema(AppDbContext db)
+    // DbMigrator legacy yolu için korunur; IF NOT EXISTS / kolon kontrolüyle idempotent.
+    internal static void EnsureNewSchema(AppDbContext db)
     {
         db.Database.ExecuteSqlRaw("""
             CREATE TABLE IF NOT EXISTS "Categories" (
@@ -325,6 +325,9 @@ public static class ShopDbSeeder
                 "Name" TEXT NOT NULL,
                 "MappingsJson" TEXT NOT NULL,
                 "StartRow" INTEGER NOT NULL,
+                "MatchBy" TEXT NOT NULL DEFAULT 'productCode',
+                "FileName" TEXT NOT NULL DEFAULT '',
+                "StoredFile" TEXT NOT NULL DEFAULT '',
                 "CreatedAt" TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS "Carts" (
                 "Id" INTEGER NOT NULL CONSTRAINT "PK_Carts" PRIMARY KEY AUTOINCREMENT,
@@ -334,17 +337,46 @@ public static class ShopDbSeeder
                 "CartId" INTEGER NOT NULL,
                 "ProductId" INTEGER NOT NULL,
                 "Qty" INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS "Reviews" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_Reviews" PRIMARY KEY AUTOINCREMENT,
+                "ProductId" INTEGER NOT NULL,
+                "UserId" TEXT NOT NULL,
+                "OrderId" INTEGER NOT NULL,
+                "OrderItemId" INTEGER NULL,
+                "Rating" INTEGER NOT NULL,
+                "Title" TEXT NULL,
+                "Comment" TEXT NULL,
+                "Status" TEXT NOT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                "UpdatedAt" TEXT NOT NULL,
+                CONSTRAINT "CK_Reviews_Rating" CHECK ("Rating" BETWEEN 1 AND 5));
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Reviews_UserId_ProductId" ON "Reviews" ("UserId", "ProductId");
+            CREATE INDEX IF NOT EXISTS "IX_Reviews_ProductId" ON "Reviews" ("ProductId");
+            CREATE TABLE IF NOT EXISTS "ReviewImages" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_ReviewImages" PRIMARY KEY AUTOINCREMENT,
+                "ReviewId" INTEGER NOT NULL,
+                "Url" TEXT NOT NULL,
+                "SortOrder" INTEGER NOT NULL,
+                "CreatedAt" TEXT NOT NULL,
+                CONSTRAINT "FK_ReviewImages_Reviews_ReviewId" FOREIGN KEY ("ReviewId") REFERENCES "Reviews" ("Id") ON DELETE CASCADE);
+            CREATE INDEX IF NOT EXISTS "IX_ReviewImages_ReviewId" ON "ReviewImages" ("ReviewId");
             """);
 
-        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'") })
+        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'"), ("AverageRating", "REAL NOT NULL DEFAULT 0"), ("ReviewCount", "INTEGER NOT NULL DEFAULT 0") })
         {
             if (!TableColumns(db, "Products").Contains(col.Item1))
                 db.Database.ExecuteSqlRaw($"""ALTER TABLE "Products" ADD COLUMN "{col.Item1}" {col.Item2}""");
         }
+        if (!TableColumns(db, "ImportTemplates").Contains("MatchBy"))
+            db.Database.ExecuteSqlRaw("""ALTER TABLE "ImportTemplates" ADD COLUMN "MatchBy" TEXT NOT NULL DEFAULT 'productCode'""");
+        if (!TableColumns(db, "ImportTemplates").Contains("FileName"))
+            db.Database.ExecuteSqlRaw("""ALTER TABLE "ImportTemplates" ADD COLUMN "FileName" TEXT NOT NULL DEFAULT ''""");
+        if (!TableColumns(db, "ImportTemplates").Contains("StoredFile"))
+            db.Database.ExecuteSqlRaw("""ALTER TABLE "ImportTemplates" ADD COLUMN "StoredFile" TEXT NOT NULL DEFAULT ''""");
     }
 
     // Eski Products.ImageUrl/Images kolonlarındaki resimleri ProductImages tablosuna taşır.
-    private static void MigrateProductImages(AppDbContext db)
+    internal static void MigrateProductImages(AppDbContext db)
     {
         var cols = TableColumns(db, "Products");
         var hasUrl = cols.Contains("ImageUrl");

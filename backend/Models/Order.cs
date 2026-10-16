@@ -18,7 +18,7 @@ public class Order
     public decimal Subtotal { get; set; }
     public decimal Shipping { get; set; }
     public decimal Total { get; set; }
-    public string Status { get; set; } = "Hazırlanıyor";
+    public string Status { get; set; } = OrderStatuses.Preparing;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

@@ -12,4 +12,8 @@ public class Product
     public int CategoryId { get; set; }
     public int? BrandId { get; set; }
     public int Stock { get; set; }
+    // Denormalize yorum özeti (yorum yaz/güncelle/sil ile aynı transaction'da güncellenir).
+    // SQLite AVG çevirisi için double; tek ondalık Math.Round ile.
+    public double AverageRating { get; set; }
+    public int ReviewCount { get; set; }
 }

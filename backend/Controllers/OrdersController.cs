@@ -16,8 +16,7 @@ public class OrdersController(AppDbContext db) : ControllerBase
     public record CheckoutDto(int AddressId, List<CheckoutItem> Items);
     public record StatusDto(string Status);
 
-    private static readonly string[] AllowedStatuses =
-        ["Hazırlanıyor", "Kargoda", "Teslim Edildi", "İptal Edildi"];
+    private static readonly string[] AllowedStatuses = OrderStatuses.All;
 
     private string UserId => ClaimsHelper.UserId(User);
 
@@ -66,7 +65,7 @@ public class OrdersController(AppDbContext db) : ControllerBase
             Subtotal = subtotal,
             Shipping = shipping,
             Total = subtotal + shipping,
-            Status = "Hazırlanıyor",
+            Status = OrderStatuses.Preparing,
             CreatedAt = DateTime.UtcNow,
         };
         db.Orders.Add(order);
@@ -110,13 +109,27 @@ public class OrdersController(AppDbContext db) : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpGet]
-    public ActionResult<object> All()
+    public ActionResult<object> All([FromQuery] int? page, [FromQuery] int? pageSize)
     {
-        var orders = db.Orders.OrderByDescending(o => o.Id).ToList();
+        var query = db.Orders.OrderByDescending(o => o.Id).AsQueryable();
         var emails = db.Users.ToDictionary(u => u.Id, u => u.Email);
-        return Ok(orders.Select(o => ToDto(o,
+        object ToItem(Order o) => ToDto(o,
             db.OrderItems.Where(i => i.OrderId == o.Id).ToList(),
-            emails.TryGetValue(o.UserId, out var e) ? e : o.CustomerEmail)));
+            emails.TryGetValue(o.UserId, out var e) ? e : o.CustomerEmail);
+        if (!page.HasValue)
+            return Ok(query.ToList().Select(ToItem));
+        var size = Math.Clamp(pageSize ?? 50, 1, 100);
+        var p = Math.Max(page.Value, 1);
+        var total = query.Count();
+        var items = query.Skip((p - 1) * size).Take(size).ToList().Select(ToItem);
+        return Ok(new
+        {
+            items,
+            total,
+            page = p,
+            pageSize = size,
+            totalPages = (int)Math.Ceiling(total / (double)size)
+        });
     }
 
     [Authorize(Roles = "admin")]

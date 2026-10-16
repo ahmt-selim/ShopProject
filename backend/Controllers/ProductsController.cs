@@ -16,7 +16,9 @@ public class ProductsController(AppDbContext db) : ControllerBase
         int CategoryId, int? BrandId, int Stock);
 
     [HttpGet]
-    public ActionResult<IEnumerable<object>> GetAll([FromQuery] int? categoryId, [FromQuery] string? q, [FromQuery] int? brandId)
+    public ActionResult<object> GetAll(
+        [FromQuery] int? categoryId, [FromQuery] string? q, [FromQuery] int? brandId,
+        [FromQuery] int? page, [FromQuery] int? pageSize)
     {
         var query = db.Products.AsQueryable();
 
@@ -28,6 +30,24 @@ public class ProductsController(AppDbContext db) : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(q))
             query = query.Where(p => p.Name.Contains(q) || p.ProductCode.Contains(q) || p.Barcode.Contains(q));
+
+        query = query.OrderByDescending(p => p.Id);
+
+        if (page.HasValue)
+        {
+            var size = Math.Clamp(pageSize ?? 20, 1, 100);
+            var p = Math.Max(page.Value, 1);
+            var total = query.Count();
+            var items = query.Skip((p - 1) * size).Take(size).ToList();
+            return Ok(new
+            {
+                items = items.Select(x => ToDto(x, CatNames(), BrandNames(), ImagesMap(items.Select(x => x.Id)))),
+                total,
+                page = p,
+                pageSize = size,
+                totalPages = (int)Math.Ceiling(total / (double)size)
+            });
+        }
 
         var products = query.ToList();
         return Ok(products.Select(p => ToDto(p, CatNames(), BrandNames(), ImagesMap(products.Select(x => x.Id)))));
@@ -143,6 +163,8 @@ public class ProductsController(AppDbContext db) : ControllerBase
         p.BrandId,
         brandName = p.BrandId.HasValue && brands.TryGetValue(p.BrandId.Value, out var b) ? b : null,
         p.Stock,
+        averageRating = p.AverageRating,
+        reviewCount = p.ReviewCount,
         images = images.TryGetValue(p.Id, out var list) ? list : new List<object>()
     };
 }
