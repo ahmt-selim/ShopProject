@@ -21,8 +21,7 @@ export const siteInfo = {
   // Diğer platformlardaki mağazalarımız (footer'da "Mağazalarımız" başlığıyla çıkar).
   // Gerçek mağaza linkleriyle değiştirin; kullanılmayacak satırı silin.
   marketplaces: [
-    { label: 'Trendyol', url: '#' },
-    { label: 'Hepsiburada', url: '#' },
-    { label: 'Amazon', url: '#' },
+    { label: 'Trendyol', url: 'https://www.trendyol.com/magaza/ihtiyacin3d-m-603384?sst=0&sk=1' },
+    { label: 'Hepsiburada', url: 'https://www.hepsiburada.com/magaza/ihtiyacin3d' },
   ],
 };
