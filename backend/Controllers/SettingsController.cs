@@ -20,7 +20,7 @@ public class SettingsController(AppDbContext db) : ControllerBase
             System.Globalization.CultureInfo.InvariantCulture, out var limit);
         return Ok(new
         {
-            storeName = Get("storeName", "MiniShop"),
+            storeName = Get("storeName", "ihtiyacın3D"),
             announcement = Get("announcement"),
             currency = Get("currency", "₺"),
             freeShippingLimit = limit
