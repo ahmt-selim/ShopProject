@@ -1,6 +1,7 @@
 # Build çıktıları
 backend/bin/
 backend/obj/
+backend/publish*/
 frontend/dist/
 frontend/dist-ssr/
 
