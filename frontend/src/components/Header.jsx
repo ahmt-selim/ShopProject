@@ -44,7 +44,9 @@ export default function Header() {
 
   return (
     <header className="header">
-      <Link to="/" className="logo">MiniShop</Link>
+      <Link to="/" className="logo" title="ihtiyacın3D">
+        <img src="/logo-header.png" alt="ihtiyacın3D" className="logo-img" />
+      </Link>
       <div className="header-right">
         <button className="icon-btn" onClick={cycleTheme} title={`Tema: ${themes[themeId]?.name || themeId}`}>
           <IconTheme />
