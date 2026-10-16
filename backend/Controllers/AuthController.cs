@@ -3,6 +3,7 @@ using Backend.Data;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Backend.Controllers;
 
@@ -15,12 +16,14 @@ public class AuthController(TokenService tokens, AppDbContext db) : ControllerBa
     public record ProfileDto(string? Name, string? Phone, string? Email);
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth-register")]
     public ActionResult<object> Register(RegisterDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
             return BadRequest(new { error = "E-posta ve şifre zorunlu." });
-        if (dto.Password.Length < 6)
-            return BadRequest(new { error = "Şifre en az 6 karakter olmalı." });
+        var pwError = PasswordRules.Validate(dto.Password);
+        if (pwError is not null)
+            return BadRequest(new { error = pwError });
         if (db.Users.Any(u => u.Email.ToLower() == dto.Email.Trim().ToLower()))
             return Conflict(new { error = "Bu e-posta zaten kayıtlı." });
 
@@ -39,8 +42,11 @@ public class AuthController(TokenService tokens, AppDbContext db) : ControllerBa
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth-login")]
     public ActionResult<object> Login(LoginDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
+            return Unauthorized(new { error = "E-posta veya şifre hatalı." });
         var email = dto.Email.Trim().ToLower();
         var user = db.Users.FirstOrDefault(u => u.Email.ToLower() == email);
         if (user is null || !PasswordHasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt))

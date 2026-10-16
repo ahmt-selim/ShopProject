@@ -8,6 +8,7 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Profile from './pages/Profile';
 import Addresses from './pages/Addresses';
 import Support from './pages/Support';
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="/cart" element={<Cart />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/account" element={<Navigate to="/account/profile" replace />} />
               <Route path="/account/profile" element={<Profile />} />
               <Route path="/account/addresses" element={<Addresses />} />
