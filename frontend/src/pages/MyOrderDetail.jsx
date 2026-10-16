@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, statusClass } from '../api/client';
 import Layout from '../components/Layout';
+import OrderReviewBox from '../components/reviews/OrderReviewBox';
 
-export function OrderDetailView({ order }) {
+export function OrderDetailView({ order, showReviews }) {
+  const delivered = order.status === 'Teslim Edildi';
   return (
     <>
       <div className="page-head">
@@ -21,6 +23,9 @@ export function OrderDetailView({ order }) {
                 <div className="cart-info">
                   <strong>{i.productName}</strong>
                   <div className="muted">{i.qty} x {Number(i.price).toLocaleString('tr-TR')} ₺</div>
+                  {showReviews && (
+                    <OrderReviewBox productId={i.productId} productName={i.productName} delivered={delivered} />
+                  )}
                 </div>
                 <strong>{(i.qty * i.price).toLocaleString('tr-TR')} ₺</strong>
               </div>
@@ -61,7 +66,7 @@ export default function MyOrderDetail() {
   return (
     <Layout>
       <p><Link to="/account/orders">← Siparişlerim</Link></p>
-      <OrderDetailView order={order} />
+      <OrderDetailView order={order} showReviews />
     </Layout>
   );
 }

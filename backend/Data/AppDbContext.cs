@@ -18,6 +18,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ImportTemplate> ImportTemplates => Set<ImportTemplate>();
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ReviewImage> ReviewImages => Set<ReviewImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +42,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(i => i.CartId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Yorumlar: navigation'lar tek yönlü (çift yönlü navigation + JSON circular
+        // reference riskine karşı API'den asla entity dönülmez, hep DTO projeksiyonu).
+        modelBuilder.Entity<Review>(e =>
+        {
+            e.HasIndex(r => r.ProductId);
+            e.HasIndex(r => new { r.UserId, r.ProductId }).IsUnique();
+            e.ToTable(t => t.HasCheckConstraint("CK_Reviews_Rating", "\"Rating\" BETWEEN 1 AND 5"));
+            e.Property(r => r.Title).HasMaxLength(100);
+            e.Property(r => r.Comment).HasMaxLength(2000);
+            e.Property(r => r.Status).HasConversion<string>().HasMaxLength(16);
+            e.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(r => r.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ReviewImage>(e =>
+        {
+            e.HasIndex(i => i.ReviewId);
+            e.HasOne<Review>()
+                .WithMany()
+                .HasForeignKey(i => i.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 
     // Ürünün ilk resmi (vitrin). Yoksa boş string.

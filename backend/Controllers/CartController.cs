@@ -110,6 +110,8 @@ public class CartController(AppDbContext db) : ControllerBase
                     name = products[i.ProductId].Name,
                     price = products[i.ProductId].Price,
                     imageUrl = db.PrimaryImageUrl(i.ProductId),
+                    averageRating = products[i.ProductId].AverageRating,
+                    reviewCount = products[i.ProductId].ReviewCount,
                     qty = i.Qty
                 })
         };

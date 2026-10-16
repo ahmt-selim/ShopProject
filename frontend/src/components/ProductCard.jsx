@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useFavorites } from '../store/FavoritesContext';
 import { IconHeart } from './icons';
 import AddToCartButton from './AddToCartButton';
+import StarRating from './StarRating';
 
 export default function ProductCard({ product }) {
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -30,7 +31,8 @@ export default function ProductCard({ product }) {
       </Link>
       <div className="card-body">
         <div className="card-cat">{product.categoryName}</div>
-        <Link to={`/product/${product.id}`} className="card-title">{product.name}</Link>
+        <Link to={`/product/${product.id}`} className="card-title" title={product.name}>{product.name}</Link>
+        <StarRating value={product.averageRating} reviewCount={product.reviewCount ?? 0} size={14} />
         <div className="card-price">{Number(product.price).toLocaleString('tr-TR')} ₺</div>
         <div className="row">
           <AddToCartButton product={product} />

@@ -20,7 +20,7 @@ public class FavoritesController(AppDbContext db) : ControllerBase
     {
         var ids = db.Favorites.Where(f => f.UserId == UserId).Select(f => f.ProductId).ToHashSet();
         var products = db.Products.Where(p => ids.Contains(p.Id))
-            .ToList().Select(p => new { p.Id, p.Name, p.Price, imageUrl = db.PrimaryImageUrl(p.Id), p.Stock });
+            .ToList().Select(p => new { p.Id, p.Name, p.Price, imageUrl = db.PrimaryImageUrl(p.Id), p.Stock, averageRating = p.AverageRating, reviewCount = p.ReviewCount });
         return Ok(products);
     }
 
