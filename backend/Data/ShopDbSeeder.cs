@@ -10,7 +10,7 @@ namespace Backend.Data;
 
 public static class ShopDbSeeder
 {
-    public static void Seed(AppDbContext db)
+    public static void Seed(AppDbContext db, IConfiguration config, ILogger logger)
     {
         // Şema DbMigrator.EnsureMigrated ile hazırlanır (Migrate + legacy damga).
         // Bu metot sadece veri seedler.
@@ -48,19 +48,7 @@ public static class ShopDbSeeder
             }
         }
 
-        if (!db.Users.Any(u => u.Email == "admin@shop.com"))
-        {
-            var (hash, salt) = PasswordHasher.Hash("Admin123!");
-            db.Users.Add(new User
-            {
-                Email = "admin@shop.com",
-                PasswordHash = hash,
-                PasswordSalt = salt,
-                Name = "Admin",
-                Role = "admin"
-            });
-            db.SaveChanges();
-        }
+        SeedAdmin(db, config, logger);
 
         if (!db.Brands.Any())
         {
@@ -88,6 +76,39 @@ public static class ShopDbSeeder
         db.SaveChanges();
 
         SeedDemoCustomerAndOrders(db);
+    }
+
+    // Admin hesabı repoda şifre tutulmadan oluşturulur: kimlik bilgileri
+    // SeedAdmin:Email / SeedAdmin:Password üzerinden gelir (geliştirmede
+    // user-secrets, canlıda SeedAdmin__Email / SeedAdmin__Password ortam
+    // değişkenleri). Tanımlı değilse hesap açılmaz, uyarı loglanır.
+    private static void SeedAdmin(AppDbContext db, IConfiguration config, ILogger logger)
+    {
+        if (db.Users.Any(u => u.Role == "admin")) return;
+
+        var email = config["SeedAdmin:Email"]?.Trim();
+        var password = config["SeedAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            logger.LogWarning(
+                "Admin hesabı yok ve SeedAdmin:Email / SeedAdmin:Password tanımlı değil; admin oluşturulmadı. " +
+                "Geliştirme: dotnet user-secrets set \"SeedAdmin:Email\" ... / \"SeedAdmin:Password\" ... " +
+                "Canlı: SeedAdmin__Email / SeedAdmin__Password ortam değişkenleri.");
+            return;
+        }
+
+        var name = config["SeedAdmin:Name"]?.Trim();
+        var (hash, salt) = PasswordHasher.Hash(password);
+        db.Users.Add(new User
+        {
+            Email = email,
+            PasswordHash = hash,
+            PasswordSalt = salt,
+            Name = string.IsNullOrWhiteSpace(name) ? "Admin" : name,
+            Role = "admin"
+        });
+        db.SaveChanges();
+        logger.LogInformation("Admin hesabı oluşturuldu: {Email}", email);
     }
 
     private static void AddImages(AppDbContext db, int productId, string productName)

@@ -257,7 +257,7 @@ try
         // Legacy shop.db'ler history damgasıyla, sıfır DB Migrate() ile açılır.
         // Migration DB'ye ilk kez burada değecek -> yedek almadan uygulamayı çalıştırma.
         DbMigrator.EnsureMigrated(db);
-        ShopDbSeeder.Seed(db);
+        ShopDbSeeder.Seed(db, app.Configuration, app.Logger);
     }
 }
 catch (Exception ex)

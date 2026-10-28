@@ -19,7 +19,13 @@ npm run dev
 ```
 
 ## Hesaplar
-- Admin: admin@shop.com / Admin123! (girişte panele yönlendirilir)
+- Admin: şifre repoda tutulmaz. Admin hesabı ilk açılışta yalnızca `SeedAdmin:Email` + `SeedAdmin:Password` tanımlıysa oluşturulur; DB'de admin varsa seed dokunmaz.
+  ```
+  cd backend
+  dotnet user-secrets set "SeedAdmin:Email" "admin@ornek.com"
+  dotnet user-secrets set "SeedAdmin:Password" "guclu-bir-sifre"
+  ```
+  Canlıda user-secrets yerine `SeedAdmin__Email` / `SeedAdmin__Password` ortam değişkenleri kullanılır.
 - Müşteri: sağ üstten Kayıt Ol (email + şifre).
 
 ## Müşteri tarafı
