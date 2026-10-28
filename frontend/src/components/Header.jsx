@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useTheme } from '../themes/ThemeContext';
+import { useSidebar } from '../store/SidebarContext';
 import { IconCart, IconHeart, IconUser, IconTheme } from './icons';
 
 export default function Header() {
   const { totalCount } = useCart();
   const { user, logout } = useAuth();
   const { themeId, setThemeId, themes } = useTheme();
+  const { open: sidebarOpen, toggle: toggleSidebar } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
@@ -44,9 +46,23 @@ export default function Header() {
 
   return (
     <header className="header">
-      <Link to="/" className="logo" title="ihtiyacın3D">
-        <img src="/logo-header.png" alt="ihtiyacın3D" className="logo-img" />
-      </Link>
+      <div className="header-left">
+        <button
+          type="button"
+          className="icon-btn hamburger-btn"
+          onClick={toggleSidebar}
+          aria-label="Kategorileri aç veya kapat"
+          aria-expanded={sidebarOpen}
+          aria-controls="sidebar-categories"
+        >
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+          <span className="hamburger-line" />
+        </button>
+        <Link to="/" className="logo" title="ihtiyacın3D">
+          <img src="/logo-header.png" alt="ihtiyacın3D" className="logo-img" />
+        </Link>
+      </div>
       <div className="header-right">
         <button className="icon-btn" onClick={cycleTheme} title={`Tema: ${themes[themeId]?.name || themeId}`}>
           <IconTheme />
