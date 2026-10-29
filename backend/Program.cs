@@ -33,7 +33,10 @@ builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddSingleton<PasswordResetMailQueue>();
 builder.Services.AddHostedService<PasswordResetMailWorker>();
+builder.Services.AddSingleton<EmailVerificationMailQueue>();
+builder.Services.AddHostedService<EmailVerificationMailWorker>();
 builder.Services.AddScoped<PasswordResetService>();
+builder.Services.AddScoped<EmailVerificationService>();
 builder.Services.AddScoped<IEmailSender>(sp =>
 {
     var env = sp.GetRequiredService<IHostEnvironment>();
@@ -140,6 +143,22 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
             AutoReplenishment = true,
         }));
+    // Şifre değiştirme: brute-force koruması (kullanıcı/IP bazlı).
+    options.AddPolicy("account-change-password", httpContext =>
+    {
+        var sub = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var key = sub is not null
+            ? $"changepw:user:{sub}"
+            : $"changepw:ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        });
+    });
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

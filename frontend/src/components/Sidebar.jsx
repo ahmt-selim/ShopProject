@@ -6,40 +6,47 @@ import { useSidebar } from '../store/SidebarContext';
 export default function Sidebar({ categories, selected, onSelect }) {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { open } = useSidebar();
+  const { open, toggle } = useSidebar();
+
+  const closeIfMobile = () => {
+    if (window.matchMedia('(max-width: 800px)').matches) toggle();
+  };
 
   return (
-    <aside className={`sidebar ${open ? 'open' : 'closed'}`} aria-label="Kategori kenar çubuğu">
-      {open && isAdmin && (
-        <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
-          Yönetim Paneli
-        </button>
-      )}
+    <>
+      {open && <div className="sidebar-backdrop" onClick={toggle} aria-hidden="true" />}
+      <aside className={`sidebar ${open ? 'open' : 'closed'}`} aria-label="Kategori kenar çubuğu">
+        {open && isAdmin && (
+          <button className="btn admin-go" onClick={() => navigate('/admin/products')}>
+            Yönetim Paneli
+          </button>
+        )}
 
-      {open && (
-        <nav id="sidebar-categories" className="sidebar-categories">
-          <ul>
-            <li>
-              <button
-                className={!selected ? 'active' : ''}
-                onClick={() => onSelect(null)}
-              >
-                Tümü
-              </button>
-            </li>
-            {categories.map((c) => (
-              <li key={c.id}>
+        {open && (
+          <nav id="sidebar-categories" className="sidebar-categories">
+            <ul>
+              <li>
                 <button
-                  className={selected === c.id ? 'active' : ''}
-                  onClick={() => onSelect(c.id)}
+                  className={!selected ? 'active' : ''}
+                  onClick={() => { onSelect(null); closeIfMobile(); }}
                 >
-                  {c.name} ({c.productCount})
+                  Tümü
                 </button>
               </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-    </aside>
+              {categories.map((c) => (
+                <li key={c.id}>
+                  <button
+                    className={selected === c.id ? 'active' : ''}
+                    onClick={() => { onSelect(c.id); closeIfMobile(); }}
+                  >
+                    {c.name} ({c.productCount})
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+      </aside>
+    </>
   );
 }

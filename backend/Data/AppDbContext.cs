@@ -25,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+        modelBuilder.Entity<User>().Property(u => u.EmailConfirmed).HasDefaultValue(true);
         modelBuilder.Entity<Favorite>().HasKey(f => new { f.UserId, f.ProductId });
         modelBuilder.Entity<Setting>().HasKey(s => s.Key);
         modelBuilder.Entity<ProductImage>()
@@ -70,6 +71,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<PasswordResetToken>(e =>
         {
             e.HasIndex(t => t.UserId);
+            e.Property(t => t.Purpose).HasDefaultValue("password_reset");
         });
     }
 

@@ -75,10 +75,10 @@ export default function Header() {
           {totalCount > 0 && <span className="cart-badge">{totalCount}</span>}
         </Link>
         {!user ? (
-          <>
-            <Link to="/register" className="hbtn">Kayıt Ol</Link>
-            <Link to="/login" className="hbtn primary">Giriş Yap</Link>
-          </>
+          <Link to="/login" className="hbtn primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <IconUser />
+            Giriş Yap
+          </Link>
         ) : (
           <div className="menu-wrap" ref={menuRef}>
             <button className="icon-btn" onClick={() => setMenuOpen((o) => !o)} title="Hesabım">

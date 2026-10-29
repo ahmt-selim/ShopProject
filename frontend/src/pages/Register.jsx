@@ -17,7 +17,7 @@ export default function Register() {
     setError('');
     try {
       await register(email, password, name);
-      navigate('/');
+      navigate('/verify-email', { state: { email: email.trim() } });
     } catch (err) {
       setError(err.message);
     }
@@ -26,15 +26,15 @@ export default function Register() {
   return (
     <Layout>
       <div className="form-wrap">
-        <h2>Kayıt Ol</h2>
+        <h2>Kayit Ol</h2>
         {error && <div className="error">{error}</div>}
         <form onSubmit={submit} className="form">
-          <label>Ad Soyad<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Adın" /></label>
+          <label>Ad Soyad<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Adin" /></label>
           <label>E-posta<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} label="Şifre (min 8)" />
-          <button className="btn" type="submit">Kayıt Ol</button>
+          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} label="Sifre (min 8)" />
+          <button className="btn" type="submit">Kayit Ol</button>
         </form>
-        <p>Zaten üye misin? <Link to="/login">Giriş Yap</Link></p>
+        <p>Zaten uye misin? <Link to="/login">Giris Yap</Link></p>
       </div>
     </Layout>
   );

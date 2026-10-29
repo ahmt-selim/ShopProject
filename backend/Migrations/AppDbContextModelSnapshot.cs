@@ -303,6 +303,12 @@ namespace Backend.Migrations
                     b.Property<int>("FailedAttempts")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("password_reset");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -491,6 +497,11 @@ namespace Backend.Migrations
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Name")
                         .IsRequired()

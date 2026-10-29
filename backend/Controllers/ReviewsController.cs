@@ -1,4 +1,5 @@
 using Backend.Auth;
+using Backend.Data;
 using Backend.Services.Reviews;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace Backend.Controllers;
 // ProblemDetails kullanan tek controller (diğerleri mevcut { error } formatında).
 [ApiController]
 [Route("api")]
-public class ReviewsController(IReviewService reviews) : ControllerBase
+public class ReviewsController(IReviewService reviews, AppDbContext db) : ControllerBase
 {
     public record CreateReviewForm(
         int Rating, string? Title, string? Comment, List<IFormFile>? Images);
@@ -99,6 +100,12 @@ public class ReviewsController(IReviewService reviews) : ControllerBase
     public async Task<ActionResult<object>> Create(int productId,
         [FromForm] CreateReviewForm form, CancellationToken ct)
     {
+        var userId = ClaimsHelper.UserId(User);
+        var user = db.Users.Find(userId);
+        if (user is null) return Unauthorized();
+        if (!user.EmailConfirmed)
+            return Problem(title: "E-posta dogrulanmamis", detail: "Yorum yazmak icin e-postanizi dogrulayin.", statusCode: 403);
+
         try
         {
             var images = await ReadAndValidateFilesAsync(form.Images, ct);

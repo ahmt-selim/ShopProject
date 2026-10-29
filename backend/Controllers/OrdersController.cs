@@ -29,6 +29,8 @@ public class OrdersController(AppDbContext db) : ControllerBase
 
         var user = db.Users.Find(UserId);
         if (user is null) return Unauthorized();
+        if (!user.EmailConfirmed)
+            return StatusCode(403, new { error = "E-posta dogrulanmamis. Lutfen e-postanizi dogrulayin." });
         var addr = db.Addresses.FirstOrDefault(a => a.UserId == UserId && a.Id == dto.AddressId);
         if (addr is null)
             return BadRequest(new { error = "Teslimat adresi seçilmedi." });

@@ -1,6 +1,7 @@
 using Backend.Auth;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -9,23 +10,25 @@ namespace Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AuthController(TokenService tokens, AppDbContext db) : ControllerBase
+public class AuthController(TokenService tokens, AppDbContext db, EmailVerificationService verifications) : ControllerBase
 {
     public record RegisterDto(string Email, string Password, string? Name);
     public record LoginDto(string Email, string Password);
     public record ProfileDto(string? Name, string? Phone, string? Email);
+    public record VerifyEmailDto(string? Email, string? Code);
+    public record ResendVerificationDto(string? Email);
 
     [HttpPost("register")]
     [EnableRateLimiting("auth-register")]
-    public ActionResult<object> Register(RegisterDto dto)
+    public async Task<ActionResult<object>> Register(RegisterDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
-            return BadRequest(new { error = "E-posta ve şifre zorunlu." });
+            return BadRequest(new { error = "E-posta ve sifre zorunlu." });
         var pwError = PasswordRules.Validate(dto.Password);
         if (pwError is not null)
             return BadRequest(new { error = pwError });
         if (db.Users.Any(u => u.Email.ToLower() == dto.Email.Trim().ToLower()))
-            return Conflict(new { error = "Bu e-posta zaten kayıtlı." });
+            return Conflict(new { error = "Bu e-posta zaten kayitli." });
 
         var (hash, salt) = PasswordHasher.Hash(dto.Password);
         var user = new User
@@ -34,11 +37,14 @@ public class AuthController(TokenService tokens, AppDbContext db) : ControllerBa
             PasswordHash = hash,
             PasswordSalt = salt,
             Name = dto.Name?.Trim() ?? string.Empty,
-            Role = "customer"
+            Role = "customer",
+            EmailConfirmed = false
         };
         db.Users.Add(user);
         db.SaveChanges();
-        return Ok(new { token = tokens.CreateToken(user), user = ToDto(user) });
+
+        await verifications.RequestVerificationAsync(user.Email, ct);
+        return Ok(new { message = "Kayit olusturuldu. E-postaniza dogrulama kodu gonderildi.", email = user.Email });
     }
 
     [HttpPost("login")]
@@ -46,12 +52,36 @@ public class AuthController(TokenService tokens, AppDbContext db) : ControllerBa
     public ActionResult<object> Login(LoginDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Password))
-            return Unauthorized(new { error = "E-posta veya şifre hatalı." });
+            return Unauthorized(new { error = "E-posta veya sifre hatali." });
         var email = dto.Email.Trim().ToLower();
         var user = db.Users.FirstOrDefault(u => u.Email.ToLower() == email);
         if (user is null || !PasswordHasher.Verify(dto.Password, user.PasswordHash, user.PasswordSalt))
-            return Unauthorized(new { error = "E-posta veya şifre hatalı." });
+            return Unauthorized(new { error = "E-posta veya sifre hatali." });
         return Ok(new { token = tokens.CreateToken(user), user = ToDto(user) });
+    }
+
+    [HttpPost("verify-email")]
+    [EnableRateLimiting("auth-reset")]
+    public async Task<ActionResult<object>> VerifyEmail(VerifyEmailDto dto, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.Code))
+            return BadRequest(new { error = "E-posta ve kod zorunlu." });
+        var email = dto.Email.Trim();
+        var ok = await verifications.VerifyAsync(email, dto.Code.Trim(), ct);
+        if (!ok)
+            return BadRequest(new { error = "Kod gecersiz veya suresi dolmus." });
+
+        var user = db.Users.FirstOrDefault(u => u.Email.ToLower() == email.ToLower());
+        if (user is null) return BadRequest(new { error = "Kod gecersiz veya suresi dolmus." });
+        return Ok(new { token = tokens.CreateToken(user), user = ToDto(user) });
+    }
+
+    [HttpPost("resend-verification")]
+    [EnableRateLimiting("auth-forgot")]
+    public async Task<ActionResult<object>> ResendVerification(ResendVerificationDto dto, CancellationToken ct)
+    {
+        await verifications.RequestVerificationAsync(dto.Email, ct);
+        return Ok(new { message = "Bu e-posta ile kayitli ve dogrulanmamis bir hesap varsa, dogrulama kodu gonderildi." });
     }
 
     [Authorize]
@@ -73,12 +103,14 @@ public class AuthController(TokenService tokens, AppDbContext db) : ControllerBa
         if (!string.IsNullOrWhiteSpace(dto.Email) && !dto.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase))
         {
             if (db.Users.Any(u => u.Email.ToLower() == dto.Email.Trim().ToLower()))
-                return Conflict(new { error = "Bu e-posta başka hesapta kayıtlı." });
+                return Conflict(new { error = "Bu e-posta baska hesapta kayitli." });
             user.Email = dto.Email.Trim();
+            // E-posta degisirse yeniden dogrulama gerekir.
+            user.EmailConfirmed = false;
         }
         db.SaveChanges();
         return Ok(ToDto(user));
     }
 
-    private static object ToDto(User u) => new { u.Id, u.Email, u.Name, u.Phone, u.Role };
+    private static object ToDto(User u) => new { u.Id, u.Email, u.Name, u.Phone, u.Role, u.EmailConfirmed };
 }

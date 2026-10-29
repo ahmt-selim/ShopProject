@@ -9,6 +9,7 @@ import ReviewsSection from '../components/reviews/ReviewsSection';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useFavorites } from '../store/FavoritesContext';
+import useSwipe from '../hooks/useSwipe';
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -23,17 +24,23 @@ export default function ProductDetail() {
   const [lightbox, setLightbox] = useState(false);
   const thumbRef = useRef(null);
   const dragRef = useRef({ down: false, startX: 0, startLeft: 0, moved: false });
+  const galleryImgRef = useRef(null);
+  const lightboxImgRef = useRef(null);
   const handleSummary = useCallback((s) => {
     setP((prev) => prev ? { ...prev, averageRating: s.averageRating, reviewCount: s.reviewCount } : prev);
   }, []);
 
   useEffect(() => {
+    // Sayfa açıldığında/en üste konumlan (manuel scrollRestoration nedeniyle)
+    window.scrollTo(0, 0);
     setActiveIdx(0);
     setP(null);
     api.getProduct(id).then((prod) => {
       setP(prod);
       setActiveIdx(0);
       api.freeShipping(prod.price).then(setFreeShip).catch(() => {});
+      // İçerik yüklendikten sonra da en üste sabitle
+      requestAnimationFrame(() => window.scrollTo(0, 0));
     }).catch(console.error);
   }, [id]);
 
@@ -81,16 +88,22 @@ export default function ProductDetail() {
     navigate(user ? '/checkout' : '/login');
   };
 
-  if (!p) return <Layout><p>Yükleniyor...</p></Layout>;
-  const images = p.images?.length ? p.images : [];
+  // Görseller (hook'lar erken return'den önce çalışmalı)
+  const images = p?.images?.length ? p.images : [];
   const imgUrls = images.length
     ? images.map((img) => api.imageUrl(img.url))
-    : [api.primaryImage(p)];
+    : (p ? [api.primaryImage(p)] : []);
   const total = imgUrls.length;
+  const count = total || 1;
   const safeIdx = total ? activeIdx % total : 0;
 
-  const prev = () => setActiveIdx((i) => (i - 1 + total) % total);
-  const next = () => setActiveIdx((i) => (i + 1) % total);
+  const prev = useCallback(() => setActiveIdx((i) => (i - 1 + count) % count), [count]);
+  const next = useCallback(() => setActiveIdx((i) => (i + 1) % count), [count]);
+
+  const gallerySwipe = useSwipe({ targetRef: galleryImgRef, onSwipeLeft: next, onSwipeRight: prev, enabled: total > 1 });
+  const lightboxSwipe = useSwipe({ targetRef: lightboxImgRef, onSwipeLeft: next, onSwipeRight: prev, enabled: total > 1 });
+
+  if (!p) return <Layout><div className="page-spinner"><span className="spinner" /></div></Layout>;
 
   const scrollActiveIntoView = (idx) => {
     const el = thumbRef.current;
@@ -125,19 +138,26 @@ export default function ProductDetail() {
     <Layout>
       <div className="detail">
         <div className="gallery">
-          <div className="gallery-main">
+          <div
+            className="gallery-main"
+            {...gallerySwipe.handlers}
+          >
             <img
+              ref={galleryImgRef}
               src={imgUrls[safeIdx]}
               alt={p.name}
               draggable={false}
               className="zoomable"
-              onClick={() => setLightbox(true)}
+              onClick={() => {
+                if (gallerySwipe.wasSwiped()) return;
+                setLightbox(true);
+              }}
               title="Büyütmek için tıkla"
             />
             {total > 1 && (
               <>
-                <button className="gallery-nav left" onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Önceki resim">‹</button>
-                <button className="gallery-nav right" onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Sonraki resim">›</button>
+                <button className="gallery-nav left" onClick={(e) => { e.stopPropagation(); if (gallerySwipe.wasSwiped()) return; prev(); }} aria-label="Önceki resim">‹</button>
+                <button className="gallery-nav right" onClick={(e) => { e.stopPropagation(); if (gallerySwipe.wasSwiped()) return; next(); }} aria-label="Sonraki resim">›</button>
                 <span className="gallery-count">{safeIdx + 1} / {total}</span>
               </>
             )}
@@ -197,26 +217,31 @@ export default function ProductDetail() {
       </div>
       <ReviewsSection productId={p.id} onSummaryChange={handleSummary} />
       {lightbox && (
-        <div className="lightbox" onClick={() => setLightbox(false)}>
+        <div className="lightbox gallery-lightbox" onClick={() => {
+          if (lightboxSwipe.wasSwiped()) return;
+          setLightbox(false);
+        }} {...lightboxSwipe.handlers}>
           <button className="lightbox-close" onClick={() => setLightbox(false)} aria-label="Kapat">×</button>
           {total > 1 && (
             <>
               <button
                 className="lightbox-nav left"
-                onClick={(e) => { e.stopPropagation(); prev(); }}
+                onClick={(e) => { e.stopPropagation(); if (lightboxSwipe.wasSwiped()) return; prev(); }}
                 aria-label="Önceki resim"
               >‹</button>
               <button
                 className="lightbox-nav right"
-                onClick={(e) => { e.stopPropagation(); next(); }}
+                onClick={(e) => { e.stopPropagation(); if (lightboxSwipe.wasSwiped()) return; next(); }}
                 aria-label="Sonraki resim"
               >›</button>
             </>
           )}
           <img
             className="lightbox-img"
+            ref={lightboxImgRef}
             src={imgUrls[safeIdx]}
             alt={p.name}
+            draggable={false}
             onClick={(e) => e.stopPropagation()}
           />
           {total > 1 && <span className="gallery-count lightbox-count">{safeIdx + 1} / {total}</span>}

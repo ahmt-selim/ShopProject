@@ -33,20 +33,21 @@ public sealed class PasswordResetService(
 
         var now = DateTime.UtcNow;
         var recentCount = await db.PasswordResetTokens.CountAsync(
-            t => t.UserId == user.Id && t.CreatedAt >= now.AddHours(-1), ct);
+            t => t.UserId == user.Id && t.Purpose == "password_reset" && t.CreatedAt >= now.AddHours(-1), ct);
         // E-posta bazlı limit (saatte 3): aşılınca mail gönderilmez ama
         // kullanıcıya yine aynı genel yanıt döner; 429 YOK (enumeration önlemi).
         if (recentCount >= MaxRequestsPerHourPerEmail) return;
 
         // Eski kullanılmamış kodlar geçersiz kılınır.
         await db.PasswordResetTokens
-            .Where(t => t.UserId == user.Id && t.UsedAt == null)
+            .Where(t => t.UserId == user.Id && t.Purpose == "password_reset" && t.UsedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), ct);
 
         var code = GenerateCode();
         db.PasswordResetTokens.Add(new PasswordResetToken
         {
             UserId = user.Id,
+            Purpose = "password_reset",
             TokenHash = HashToken(code),
             ExpiresAt = now.AddMinutes(TokenLifetimeMinutes),
             CreatedAt = now,
@@ -123,7 +124,7 @@ public sealed class PasswordResetService(
 
         // Başarılı reset sonrası kalan kullanılmamış kodların tümü iptal.
         await db.PasswordResetTokens
-            .Where(t => t.UserId == user.Id && t.UsedAt == null)
+            .Where(t => t.UserId == user.Id && t.Purpose == "password_reset" && t.UsedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), ct);
 
         await db.SaveChangesAsync(ct);
@@ -146,7 +147,7 @@ public sealed class PasswordResetService(
         var now = DateTime.UtcNow;
         var presentedHash = HashToken(code);
         var candidates = await db.PasswordResetTokens
-            .Where(t => t.UserId == userId && t.UsedAt == null && t.ExpiresAt > now)
+            .Where(t => t.UserId == userId && t.Purpose == "password_reset" && t.UsedAt == null && t.ExpiresAt > now)
             .Select(t => new { t.Id, t.TokenHash })
             .ToListAsync(ct);
 
@@ -172,10 +173,10 @@ public sealed class PasswordResetService(
     {
         var now = DateTime.UtcNow;
         await db.PasswordResetTokens
-            .Where(t => t.UserId == userId && t.UsedAt == null && t.ExpiresAt > now)
+            .Where(t => t.UserId == userId && t.Purpose == "password_reset" && t.UsedAt == null && t.ExpiresAt > now)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.FailedAttempts, t => t.FailedAttempts + 1), ct);
         await db.PasswordResetTokens
-            .Where(t => t.UserId == userId && t.UsedAt == null && t.FailedAttempts >= MaxFailedAttempts)
+            .Where(t => t.UserId == userId && t.Purpose == "password_reset" && t.UsedAt == null && t.FailedAttempts >= MaxFailedAttempts)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.UsedAt, now), ct);
     }
 }

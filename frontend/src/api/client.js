@@ -100,12 +100,18 @@ export const api = {
   me: () => request('/api/auth/me'),
   updateProfile: (data) =>
     request('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+  changePassword: (data) =>
+    request('/api/account/change-password', { method: 'POST', body: JSON.stringify(data) }),
   forgotPassword: (email) =>
     request('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: ({ email, code, newPassword }) =>
     request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, newPassword }) }),
   verifyResetCode: ({ email, code }) =>
     request('/api/auth/verify-reset-code', { method: 'POST', body: JSON.stringify({ email, code }) }),
+  verifyEmail: ({ email, code }) =>
+    request('/api/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) }),
+  resendVerification: (email) =>
+    request('/api/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
 
   getAddresses: () => request('/api/addresses'),
   addAddress: (data) =>

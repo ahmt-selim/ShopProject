@@ -17,7 +17,10 @@ export default function Home() {
     return c > 0 ? c : null;
   });
   const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    const p = Number(searchParams.get('page'));
+    return p > 0 ? p : 1;
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -26,11 +29,18 @@ export default function Home() {
     api.getCategories().then(setCategories).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   // Footer'daki kategori linkleri (/?category=ID) ile senkron kal.
   useEffect(() => {
     const c = Number(searchParams.get('category'));
     setSelected(c > 0 ? c : null);
-    setPage(1);
+    const p = Number(searchParams.get('page'));
+    setPage(p > 0 ? p : 1);
   }, [searchParams]);
 
   useEffect(() => {
@@ -43,13 +53,51 @@ export default function Home() {
           setTotalPages(res.totalPages || 1);
         })
         .catch(console.error)
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          try {
+            const saved = JSON.parse(sessionStorage.getItem('homeListState') || 'null');
+            if (saved && saved.page === page) {
+              const y = saved.scrollY || 0;
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  window.scrollTo(0, y);
+                });
+              });
+              sessionStorage.removeItem('homeListState');
+            }
+          } catch {
+            // ignore
+          }
+        });
     }, 300);
     return () => clearTimeout(t);
   }, [selected, q, page]);
 
+  useEffect(() => {
+    const save = () => {
+      try {
+        sessionStorage.setItem('homeListState', JSON.stringify({ page, scrollY: window.scrollY }));
+      } catch {
+        // ignore
+      }
+    };
+    const onClick = (e) => {
+      const a = e.target && e.target.closest ? e.target.closest('a[href^="/product/"]') : null;
+      if (a) save();
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [page]);
+
   const goPage = (n) => {
     setPage(n);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (n > 1) next.set('page', String(n));
+      else next.delete('page');
+      return next;
+    });
     window.scrollTo(0, 0);
   };
 
@@ -70,7 +118,7 @@ export default function Home() {
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Ürün adı, kodu veya barkod ile ara..."
       />
-      {loading ? <p>Yükleniyor...</p> : (
+      {loading ? <div className="page-spinner"><span className="spinner" /></div> : (
         products.length === 0 ? <p>Ürün bulunamadı.</p> : (
           <>
             <p className="muted">{total} ürün bulundu</p>

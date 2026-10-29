@@ -3,14 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { IconEye, IconEyeOff } from '../components/icons';
 import { useAuth } from '../store/AuthContext';
+import { api } from '../api/client';
 
+/* eslint-disable react/prop-types */
 export function PasswordField({ value, onChange, label }) {
   const [show, setShow] = useState(false);
   return (
-    <label>{label || 'Şifre'}
+    <label>{label || 'Sifre'}
       <span className="pw-wrap">
         <input type={show ? 'text' : 'password'} value={value} onChange={onChange} required />
-        <button type="button" className="pw-toggle" onClick={() => setShow((s) => !s)} title={show ? 'Gizle' : 'Göster'} aria-label={show ? 'Şifreyi gizle' : 'Şifreyi göster'}>
+        <button type="button" className="pw-toggle" onClick={() => setShow((s) => !s)} title={show ? 'Gizle' : 'Goster'} aria-label={show ? 'Sifreyi gizle' : 'Sifreyi goster'}>
           {show ? <IconEyeOff /> : <IconEye />}
         </button>
       </span>
@@ -22,34 +24,68 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [resending, setResending] = useState(false);
+  const [attempted, setAttempted] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    setNotice('');
+    setAttempted(true);
     try {
       const user = await login(email, password);
+      if (!user.emailConfirmed) {
+        navigate('/verify-email', { state: { email: email.trim() } });
+        return;
+      }
       navigate(user.role === 'admin' ? '/admin/products' : '/');
     } catch (err) {
       setError(err.message);
     }
   };
 
+  const resend = async () => {
+    if (resending) return;
+    setError('');
+    setNotice('');
+    setResending(true);
+    try {
+      await api.resendVerification(email.trim());
+      setNotice('Dogrulama kodu tekrar gonderildi.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="form-wrap">
-        <h2>Giriş Yap</h2>
+        <h2>Giris Yap</h2>
+        {notice && <div className="info" role="status" aria-live="polite">{notice}</div>}
         {error && <div className="error">{error}</div>}
         <form onSubmit={submit} className="form">
           <label>E-posta<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
           <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button className="btn" type="submit">Giriş Yap</button>
+          <button className="btn" type="submit">Giris Yap</button>
         </form>
         <p>
-          <Link to="/forgot-password">Şifremi unuttum</Link>
+          <Link to="/forgot-password">Sifremi unuttum</Link>
         </p>
-        <p>Hesabın yok mu? <Link to="/register">Kayıt Ol</Link></p>
+        {attempted && (
+          <p>
+            <button type="button" className="btn" onClick={resend} disabled={resending}>
+              {resending ? 'Gonderiliyor...' : 'Dogrulama kodunu tekrar gonder'}
+            </button>
+          </p>
+        )}
+        <p>
+          <button type="button" className="btn" onClick={() => navigate('/register')}>Hesabınız yoksa kaydolun</button>
+        </p>
       </div>
     </Layout>
   );

@@ -13,8 +13,22 @@ const PAGE_SIZE = 20;
 
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
+  const [q, setQ] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('adminProductsState') || 'null');
+      return saved?.q || '';
+    } catch {
+      return '';
+    }
+  });
+  const [page, setPage] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('adminProductsState') || 'null');
+      return saved?.page || 1;
+    } catch {
+      return 1;
+    }
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,9 +41,26 @@ export default function AdminProducts() {
         setProducts(res.items || []);
         setTotal(res.total || 0);
         setTotalPages(res.totalPages || 1);
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('adminProductsState') || 'null');
+          if (saved && saved.page === p && (saved.q || '') === (query || '')) {
+            const y = saved.scrollY || 0;
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                window.scrollTo(0, y);
+              });
+            });
+            sessionStorage.removeItem('adminProductsState');
+          }
+        } catch {
+          // ignore
+        }
       })
       .catch(console.error);
 
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+  }, []);
   useEffect(() => {
     const t = setTimeout(() => {
       fetchProducts(page, q.trim());
@@ -78,13 +109,13 @@ export default function AdminProducts() {
       <div className="table-wrap">
         <table className="table">
           <thead>
-            <tr><th></th><th>Ürün</th><th>Ürün Kodu</th><th>Barkod</th><th>KDV</th><th>Fiyat</th><th>Stok</th><th></th></tr>
+            <tr><th></th><th className="col-product">Ürün</th><th>Ürün Kodu</th><th>Barkod</th><th>KDV</th><th>Fiyat</th><th>Stok</th><th></th></tr>
           </thead>
           <tbody>
             {products.map((p) => (
-              <tr key={p.id} className="click" onClick={() => navigate(`/admin/products/${p.id}`)}>
+              <tr key={p.id} className="click" onClick={() => { try { sessionStorage.setItem('adminProductsState', JSON.stringify({ page, q, scrollY: window.scrollY })); } catch { /* ignore */ } navigate(`/admin/products/${p.id}`); }}>
                 <td><img className="timg" src={api.primaryImage(p)} alt="" /></td>
-                <td><strong>#{p.id} {p.name}</strong><br /><span className="muted">{p.categoryName}{p.brandName ? ` - ${p.brandName}` : ''}</span></td>
+                <td className="col-product"><strong>#{p.id} {p.name}</strong><br /><span className="muted">{p.categoryName}{p.brandName ? ` - ${p.brandName}` : ''}</span></td>
                 <td>{p.productCode || '-'}</td>
                 <td>{p.barcode || '-'}</td>
                 <td>%{p.vatRate}</td>
