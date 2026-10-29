@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { siteInfo } from '../config/siteInfo';
+import { APP_VERSION_LABEL } from '../config/version';
 import { IconInstagram, IconWhatsApp } from './icons';
 import './Footer.css';
 
@@ -171,6 +172,7 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <p>© {year} {storeName}. Tüm hakları saklıdır.</p>
+        <p className="footer-version">Sürüm {APP_VERSION_LABEL}</p>
         <nav aria-label="Yasal bilgiler" className="footer-legal">
           {legalLinks.map((l, i) => (
             <span key={l.to}>

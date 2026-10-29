@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ScrollToTop from './components/ScrollToTop';
 import { ThemeProvider } from './themes/ThemeContext';
 import { CartProvider } from './store/CartContext';
 import { AuthProvider } from './store/AuthContext';
@@ -37,6 +38,7 @@ export default function App() {
         <FavoritesProvider>
         <CartProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/product/:id" element={<ProductDetail />} />

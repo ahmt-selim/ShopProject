@@ -32,31 +32,65 @@ export default function AdminProducts() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(20);
+  const [selected, setSelected] = useState(() => new Set());
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  const fetchProducts = (p, query) =>
-    api.getProducts(undefined, query || undefined, p, PAGE_SIZE)
-      .then((res) => {
+  const toggleOne = (id, checked) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+  const toggleAll = (checked) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      products.forEach((p) => { if (checked) next.add(p.id); else next.delete(p.id); });
+      return next;
+    });
+  };
+  const allSelected = products.length > 0 && products.every((p) => selected.has(p.id));
+
+  const fetchProducts = (p, query) => {
+    const size = pageSize;
+    const handle = (res, isPaged) => {
+      setSelected(new Set());
+      if (isPaged) {
         setProducts(res.items || []);
         setTotal(res.total || 0);
         setTotalPages(res.totalPages || 1);
-        try {
-          const saved = JSON.parse(sessionStorage.getItem('adminProductsState') || 'null');
-          if (saved && saved.page === p && (saved.q || '') === (query || '')) {
-            const y = saved.scrollY || 0;
+      } else {
+        const items = Array.isArray(res) ? res : (res.items || []);
+        setProducts(items);
+        setTotal(items.length);
+        setTotalPages(1);
+      }
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('adminProductsState') || 'null');
+        if (saved && saved.page === p && (saved.q || '') === (query || '')) {
+          const y = saved.scrollY || 0;
+          requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                window.scrollTo(0, y);
-              });
+              window.scrollTo(0, y);
             });
-            sessionStorage.removeItem('adminProductsState');
-          }
-        } catch {
-          // ignore
+          });
+          sessionStorage.removeItem('adminProductsState');
         }
-      })
+      } catch {
+        // ignore
+      }
+    };
+    if (size === 'all') {
+      return api.getProducts(undefined, query || undefined)
+        .then((res) => handle(res, false))
+        .catch(console.error);
+    }
+    return api.getProducts(undefined, query || undefined, p, Number(size))
+      .then((res) => handle(res, true))
       .catch(console.error);
+  };
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
@@ -66,7 +100,7 @@ export default function AdminProducts() {
       fetchProducts(page, q.trim());
     }, 300);
     return () => clearTimeout(t);
-  }, [q, page]);
+  }, [q, page, pageSize]);
 
   useEffect(() => {
     const close = (e) => {
@@ -85,11 +119,38 @@ export default function AdminProducts() {
 
   const load = () => fetchProducts(page, q.trim());
 
+  const bulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`${selected.size} ürün silinsin mi?`)) return;
+    try {
+      await Promise.all([...selected].map((id) => api.deleteProduct(id)));
+      setSelected(new Set());
+      load();
+    } catch (err) {
+      alert(err?.message || 'Silme sırasında hata oluştu.');
+    }
+  };
+
   return (
     <>
       <div className="page-head">
         <h2>Ürünler ({total})</h2>
-        <div className="menu-wrap" ref={menuRef}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {selected.size > 0 && (
+            <select
+              className="admin-select"
+              defaultValue=""
+              onChange={(e) => {
+                const v = e.target.value;
+                e.target.value = '';
+                if (v === 'delete') bulkDelete();
+              }}
+            >
+              <option value="" disabled>Toplu İşlemler ({selected.size})</option>
+              <option value="delete">Seçili ürünleri sil</option>
+            </select>
+          )}
+          <div className="menu-wrap" ref={menuRef}>
           <button className="btn" onClick={() => setMenuOpen((o) => !o)}>+ Ürün Ekle</button>
           {menuOpen && (
             <div className="dropdown">
@@ -99,6 +160,7 @@ export default function AdminProducts() {
             </div>
           )}
         </div>
+        </div>
       </div>
       <input
         className="search-input"
@@ -106,14 +168,33 @@ export default function AdminProducts() {
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Ürün adı, kodu veya barkod ile ara..."
       />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0' }}>
+        <label htmlFor="pageSize">Sayfada gösterilecek ürün sayısı:</label>
+        <select
+          id="pageSize"
+          className="admin-select"
+          value={pageSize}
+          onChange={(e) => {
+            const v = e.target.value;
+            setPageSize(v === 'all' ? 'all' : Number(v));
+            setPage(1);
+          }}
+        >
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+          <option value="all">Hepsi</option>
+        </select>
+      </div>
       <div className="table-wrap">
         <table className="table">
           <thead>
-            <tr><th></th><th className="col-product">Ürün</th><th>Ürün Kodu</th><th>Barkod</th><th>KDV</th><th>Fiyat</th><th>Stok</th><th></th></tr>
+            <tr><th><input type="checkbox" checked={allSelected} onChange={(e) => toggleAll(e.target.checked)} onClick={(e) => e.stopPropagation()} /></th><th></th><th className="col-product">Ürün</th><th>Ürün Kodu</th><th>Barkod</th><th>KDV</th><th>Fiyat</th><th>Stok</th><th></th></tr>
           </thead>
           <tbody>
             {products.map((p) => (
               <tr key={p.id} className="click" onClick={() => { try { sessionStorage.setItem('adminProductsState', JSON.stringify({ page, q, scrollY: window.scrollY })); } catch { /* ignore */ } navigate(`/admin/products/${p.id}`); }}>
+                <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(p.id)} onChange={(e) => toggleOne(p.id, e.target.checked)} /></td>
                 <td><img className="timg" src={api.primaryImage(p)} alt="" /></td>
                 <td className="col-product"><strong>#{p.id} {p.name}</strong><br /><span className="muted">{p.categoryName}{p.brandName ? ` - ${p.brandName}` : ''}</span></td>
                 <td>{p.productCode || '-'}</td>
