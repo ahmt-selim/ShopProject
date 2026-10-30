@@ -5,21 +5,39 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Backend.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class OrdersController(AppDbContext db) : ControllerBase
+public class OrdersController(AppDbContext db, IConfiguration cfg) : ControllerBase
 {
     public record CheckoutItem(int ProductId, int Qty);
     public record CheckoutDto(int AddressId, List<CheckoutItem> Items);
-    public record StatusDto(string Status);
+    public record StatusDto(string Status, string? Note);
+    public record ShippingDto(string Carrier, string TrackingNumber, DateTime? EstimatedDelivery);
+    public record NoteDto(string Note);
 
     private static readonly string[] AllowedStatuses = OrderStatuses.All;
 
     private string UserId => ClaimsHelper.UserId(User);
+    private bool IsAdmin => User.IsInRole("admin");
+
+    // Izinli gecisler
+    private static bool IsAllowedTransition(string from, string to)
+    {
+        if (from == to) return true;
+        return (from, to) switch
+        {
+            (OrderStatuses.Preparing, OrderStatuses.Shipping) => true,
+            (OrderStatuses.Shipping, OrderStatuses.Delivered) => true,
+            (OrderStatuses.Preparing, OrderStatuses.Cancelled) => true,
+            (OrderStatuses.Shipping, OrderStatuses.Cancelled) => true,
+            _ => false
+        };
+    }
 
     [HttpPost("checkout")]
     public ActionResult<object> Checkout(CheckoutDto dto)
@@ -90,7 +108,7 @@ public class OrdersController(AppDbContext db) : ControllerBase
         }
         db.SaveChanges();
 
-        return Ok(ToDto(order, db.OrderItems.Where(i => i.OrderId == order.Id).ToList(), user.Email));
+        return Ok(ToCustomerDto(order, db.OrderItems.Where(i => i.OrderId == order.Id).ToList(), user.Email, db.OrderStatusHistories.Where(h => h.OrderId == order.Id).ToList()));
     }
 
     [HttpGet("mine")]
@@ -98,8 +116,9 @@ public class OrdersController(AppDbContext db) : ControllerBase
     {
         var orders = db.Orders.Where(o => o.UserId == UserId)
             .OrderByDescending(o => o.Id).ToList();
-        return Ok(orders.Select(o => ToDto(o,
-            db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null)));
+        return Ok(orders.Select(o => ToCustomerDto(o,
+            db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null,
+            db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList())));
     }
 
     [HttpGet("mine/{id:int}")]
@@ -107,10 +126,9 @@ public class OrdersController(AppDbContext db) : ControllerBase
     {
         var o = db.Orders.FirstOrDefault(x => x.Id == id && x.UserId == UserId);
         if (o is null) return NotFound();
-        return Ok(ToDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null));
+        return Ok(ToCustomerDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null, db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList()));
     }
 
-    // Üye girişi olmadan sipariş takibi: sipariş no + e-posta eşleşirse kısıtlı bilgi döner.
     [AllowAnonymous]
     [HttpGet("track")]
     [EnableRateLimiting("orders-track")]
@@ -129,13 +147,18 @@ public class OrdersController(AppDbContext db) : ControllerBase
         {
             o.OrderNo,
             o.Status,
+            o.PaymentStatus,
             o.CreatedAt,
             o.ItemsCount,
             o.Subtotal,
             o.Shipping,
             o.Total,
+            o.Carrier,
+            o.TrackingNumber,
+            o.TrackingUrl,
+            o.ShippedAt,
             city = o.AddressCity,
-            items = items.Select(i => new { i.ProductName, i.Price, i.Qty, i.ImageUrl })
+            items = items.Select(i => new { i.ProductName, i.Price, i.Qty, i.ImageUrl, i.ProductId })
         });
     }
 
@@ -145,9 +168,10 @@ public class OrdersController(AppDbContext db) : ControllerBase
     {
         var query = db.Orders.OrderByDescending(o => o.Id).AsQueryable();
         var emails = db.Users.ToDictionary(u => u.Id, u => u.Email);
-        object ToItem(Order o) => ToDto(o,
+        object ToItem(Order o) => ToAdminDto(o,
             db.OrderItems.Where(i => i.OrderId == o.Id).ToList(),
-            emails.TryGetValue(o.UserId, out var e) ? e : o.CustomerEmail);
+            emails.TryGetValue(o.UserId, out var e) ? e : o.CustomerEmail,
+            db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList());
         if (!page.HasValue)
             return Ok(query.ToList().Select(ToItem));
         var size = Math.Clamp(pageSize ?? 50, 1, 100);
@@ -165,13 +189,21 @@ public class OrdersController(AppDbContext db) : ControllerBase
     }
 
     [Authorize(Roles = "admin")]
+    [HttpGet("carriers")]
+    public ActionResult<object> Carriers()
+    {
+        var carriers = cfg.GetSection("Shipping:Carriers").Get<List<CarrierConfig>>() ?? new();
+        return Ok(carriers);
+    }
+
+    [Authorize(Roles = "admin")]
     [HttpGet("{id:int}")]
     public ActionResult<object> GetById(int id)
     {
         var o = db.Orders.Find(id);
         if (o is null) return NotFound();
         var user = db.Users.Find(o.UserId);
-        return Ok(ToDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), user?.Email));
+        return Ok(ToAdminDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), user?.Email, db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList()));
     }
 
     [Authorize(Roles = "admin")]
@@ -182,9 +214,136 @@ public class OrdersController(AppDbContext db) : ControllerBase
         if (o is null) return NotFound();
         if (!AllowedStatuses.Contains(dto.Status))
             return BadRequest(new { error = "Geçersiz durum." });
+
+        if (!IsAllowedTransition(o.Status, dto.Status))
+            return BadRequest(new { error = $"'{o.Status}' → '{dto.Status}' geçişi izinli değil." });
+
+        // Odeme kontrolu
+        if ((dto.Status == OrderStatuses.Preparing || dto.Status == OrderStatuses.Shipping) && o.PaymentStatus != PaymentStatuses.Paid)
+            return BadRequest(new { error = "Ödemesi tamamlanmamış sipariş hazırlanıyor/kargoya verilemez." });
+
+        if (dto.Status == OrderStatuses.Shipping && string.IsNullOrWhiteSpace(o.TrackingNumber))
+            return BadRequest(new { error = "Takip numarası olmadan kargoya verilemez." });
+
+        var fromStatus = o.Status;
+        var fromPay = o.PaymentStatus;
         o.Status = dto.Status;
+        if (dto.Status == OrderStatuses.Delivered && o.DeliveredAt is null)
+            o.DeliveredAt = DateTime.UtcNow;
+        if (dto.Status == OrderStatuses.Shipping && o.ShippedAt is null)
+            o.ShippedAt = DateTime.UtcNow;
+
+        db.OrderStatusHistories.Add(new OrderStatusHistory
+        {
+            OrderId = o.Id,
+            FromStatus = fromStatus,
+            ToStatus = o.Status,
+            FromPaymentStatus = fromPay,
+            ToPaymentStatus = o.PaymentStatus,
+            ChangedAt = DateTime.UtcNow,
+            ChangedByUserId = UserId,
+            Note = dto.Note ?? ""
+        });
         db.SaveChanges();
-        return Ok(ToDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), null));
+
+        var user = db.Users.Find(o.UserId);
+        return Ok(ToAdminDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), user?.Email, db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList()));
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPut("{id:int}/shipping")]
+    public ActionResult<object> SetShipping(int id, ShippingDto dto)
+    {
+        var o = db.Orders.Find(id);
+        if (o is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(dto.TrackingNumber))
+            return BadRequest(new { error = "Takip numarası zorunlu." });
+        if (string.IsNullOrWhiteSpace(dto.Carrier))
+            return BadRequest(new { error = "Kargo firması seçiniz." });
+
+        if (o.PaymentStatus != PaymentStatuses.Paid)
+            return BadRequest(new { error = "Ödemesi tamamlanmamış sipariş kargoya verilemez." });
+
+        var carrierCfg = (cfg.GetSection("Shipping:Carriers").Get<List<CarrierConfig>>() ?? new())
+            .FirstOrDefault(c => c.Name == dto.Carrier);
+        var fromStatus = o.Status;
+        var fromPay = o.PaymentStatus;
+
+        o.Carrier = dto.Carrier;
+        o.TrackingNumber = dto.TrackingNumber.Trim();
+        o.TrackingUrl = carrierCfg is not null
+            ? carrierCfg.TrackingUrlTemplate.Replace("{tracking}", Uri.EscapeDataString(o.TrackingNumber))
+            : "";
+        if (dto.EstimatedDelivery.HasValue) o.EstimatedDelivery = dto.EstimatedDelivery;
+        if (o.ShippedAt is null) o.ShippedAt = DateTime.UtcNow;
+        o.Status = OrderStatuses.Shipping;
+
+        db.OrderStatusHistories.Add(new OrderStatusHistory
+        {
+            OrderId = o.Id,
+            FromStatus = fromStatus,
+            ToStatus = o.Status,
+            FromPaymentStatus = fromPay,
+            ToPaymentStatus = o.PaymentStatus,
+            ChangedAt = DateTime.UtcNow,
+            ChangedByUserId = UserId,
+            Note = $"Kargoya verildi: {dto.Carrier} {o.TrackingNumber}"
+        });
+        db.SaveChanges();
+
+        var user = db.Users.Find(o.UserId);
+        return Ok(ToAdminDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), user?.Email, db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList()));
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpPut("{id:int}/note")]
+    public ActionResult<object> SetNote(int id, NoteDto dto)
+    {
+        var o = db.Orders.Find(id);
+        if (o is null) return NotFound();
+        o.InternalNote = dto.Note ?? "";
+        db.SaveChanges();
+        var user = db.Users.Find(o.UserId);
+        return Ok(ToAdminDto(o, db.OrderItems.Where(i => i.OrderId == o.Id).ToList(), user?.Email, db.OrderStatusHistories.Where(h => h.OrderId == o.Id).ToList()));
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpDelete("{id:int}")]
+    public ActionResult Delete(int id)
+    {
+        var o = db.Orders.Find(id);
+        if (o is null) return NotFound();
+        var items = db.OrderItems.Where(i => i.OrderId == id).ToList();
+        foreach (var it in items)
+        {
+            var p = db.Products.Find(it.ProductId);
+            if (p is not null) p.Stock += it.Qty;
+        }
+        db.OrderStatusHistories.RemoveRange(db.OrderStatusHistories.Where(h => h.OrderId == id));
+        db.OrderItems.RemoveRange(items);
+        db.Orders.Remove(o);
+        db.SaveChanges();
+        return NoContent();
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpGet("{id:int}/history")]
+    public ActionResult<object> History(int id)
+    {
+        var list = db.OrderStatusHistories.Where(h => h.OrderId == id)
+            .OrderByDescending(h => h.ChangedAt).ToList();
+        var users = db.Users.ToDictionary(u => u.Id, u => u.Email);
+        return Ok(list.Select(h => new
+        {
+            h.Id,
+            h.FromStatus,
+            h.ToStatus,
+            h.FromPaymentStatus,
+            h.ToPaymentStatus,
+            h.ChangedAt,
+            changedBy = users.TryGetValue(h.ChangedByUserId, out var e) ? e : h.ChangedByUserId,
+            h.Note
+        }));
     }
 
     private decimal GetDecimal(string key, decimal fallback) =>
@@ -193,7 +352,7 @@ public class OrdersController(AppDbContext db) : ControllerBase
                 System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : fallback)
             .FirstOrDefault(fallback);
 
-    private static object ToDto(Order o, List<OrderItem> items, string? email) => new
+    private static object ToCustomerDto(Order o, List<OrderItem> items, string? email, List<OrderStatusHistory> history) => new
     {
         o.Id,
         o.OrderNo,
@@ -214,7 +373,84 @@ public class OrdersController(AppDbContext db) : ControllerBase
         o.Shipping,
         o.Total,
         o.Status,
+        payment = new
+        {
+            status = o.PaymentStatus,
+            cardFamily = o.CardFamily,
+            cardAssociation = o.CardAssociation,
+            cardLast4 = o.CardLast4,
+            installmentCount = o.InstallmentCount,
+            paidAt = o.PaidAt
+        },
+        shippingInfo = new
+        {
+            o.Carrier,
+            o.TrackingNumber,
+            o.TrackingUrl,
+            o.ShippedAt,
+            o.DeliveredAt,
+            o.EstimatedDelivery
+        },
         o.CreatedAt,
-        items = items.Select(i => new { i.Id, i.ProductId, i.ProductName, i.Price, i.Qty, i.ImageUrl })
+        items = items.Select(i => new { i.Id, i.ProductId, i.ProductName, i.Price, i.Qty, i.ImageUrl }),
+        history = history.OrderBy(h => h.ChangedAt).Select(h => new { h.FromStatus, h.ToStatus, h.ChangedAt }).ToList()
     };
+
+    private static object ToAdminDto(Order o, List<OrderItem> items, string? email, List<OrderStatusHistory> history) => new
+    {
+        o.Id,
+        o.OrderNo,
+        o.CustomerName,
+        customerEmail = email ?? o.CustomerEmail,
+        o.CustomerPhone,
+        o.UserId,
+        address = new
+        {
+            o.AddressTitle,
+            o.AddressFullName,
+            o.AddressPhone,
+            o.AddressCity,
+            o.AddressDistrict,
+            o.AddressDetail
+        },
+        o.ItemsCount,
+        o.Subtotal,
+        o.Shipping,
+        o.Total,
+        o.Status,
+        payment = new
+        {
+            status = o.PaymentStatus,
+            paymentId = o.PaymentId,
+            cardFamily = o.CardFamily,
+            cardAssociation = o.CardAssociation,
+            cardLast4 = o.CardLast4,
+            installmentCount = o.InstallmentCount,
+            paidAt = o.PaidAt,
+            conversationId = o.ConversationId
+        },
+        shippingInfo = new
+        {
+            o.Carrier,
+            o.TrackingNumber,
+            o.TrackingUrl,
+            o.ShippedAt,
+            o.DeliveredAt,
+            o.EstimatedDelivery
+        },
+        o.InternalNote,
+        o.CreatedAt,
+        items = items.Select(i => new { i.Id, i.ProductId, i.ProductName, i.Price, i.Qty, i.ImageUrl }),
+        history = history.OrderByDescending(h => h.ChangedAt).Select(h => new { h.FromStatus, h.ToStatus, h.ChangedAt, h.ChangedByUserId, h.Note }).ToList()
+    };
+}
+
+public class CarrierConfig
+{
+    public string Name { get; set; } = "";
+    public string TrackingUrlTemplate { get; set; } = "";
+    // Kargo servisi API bilgileri (admin ayarlarindan/appsettings'ten girilebilir)
+    public string ApiBaseUrl { get; set; } = "";
+    public string ApiKey { get; set; } = "";
+    public string ApiSecret { get; set; } = "";
 }

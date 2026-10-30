@@ -64,3 +64,20 @@ npm run dev
 - POST /api/upload (admin, dosya max 5MB) -> /uploads/...
 
 Tablolar: Products (productCode, barcode, vatRate, averageRating, reviewCount), ProductImages (productId->url), Reviews (+ReviewImages), Categories, Brands, Users, Addresses, Favorites, Orders, OrderItems, Settings.
+
+## iyzico yapýlandýrmasý (sandbox)
+
+Bölüm adý: Iyzico, alanlar: ApiKey, SecretKey, BaseUrl.
+
+Geliþtirme (user-secrets):
+
+``bash
+cd backend
+dotnet user-secrets set "Iyzico:ApiKey" "<API_KEY>"
+dotnet user-secrets set "Iyzico:SecretKey" "<SECRET_KEY>"
+dotnet user-secrets set "Iyzico:BaseUrl" "https://sandbox-api.iyzipay.com"
+``n
+Ortam deðiþkeni karþýlýðý: Iyzico__ApiKey, Iyzico__SecretKey, Iyzico__BaseUrl.
+
+Canlýya geçiþte deðiþen 3 deðer: ApiKey, SecretKey, BaseUrl (canlý: https://api.iyzipay.com).
+

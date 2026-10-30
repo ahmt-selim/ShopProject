@@ -8,12 +8,15 @@ using Backend.Services.Email;
 using Backend.Data;
 using Backend.Logging;
 using Backend.Services.Files;
+using Backend.Services.Payments;
 using Backend.Services.Reviews;
+using Backend.Services.Cargo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +30,34 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddOptions<IyzicoOptions>()
+    .Bind(builder.Configuration.GetSection("Iyzico"))
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<IyzicoOptions>, IyzicoOptionsValidator>();
+builder.Services.AddScoped<IPaymentService, IyzicoPaymentService>();
+
+// Kargo durum senkronizasyonu: her saat calisan arka plan servisi.
+builder.Services.AddHttpClient("cargo", client =>
+{
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("ihtiyacin3d-cargo-sync/1.0");
+});
+builder.Services.AddSingleton<YurticiKargoTracker>();
+builder.Services.AddSingleton<ArasKargoTracker>();
+builder.Services.AddSingleton<MngKargoTracker>();
+builder.Services.AddSingleton<PttKargoTracker>();
+builder.Services.AddSingleton<SuratKargoTracker>();
+builder.Services.AddSingleton<GenericCargoTracker>();
+builder.Services.AddSingleton<IEnumerable<ICargoCarrierTracker>>(sp => new ICargoCarrierTracker[]
+{
+    sp.GetRequiredService<YurticiKargoTracker>(),
+    sp.GetRequiredService<ArasKargoTracker>(),
+    sp.GetRequiredService<MngKargoTracker>(),
+    sp.GetRequiredService<PttKargoTracker>(),
+    sp.GetRequiredService<SuratKargoTracker>(),
+});
+builder.Services.AddSingleton<ICargoTrackingService, CargoTrackingService>();
+builder.Services.AddHostedService<OrderCargoSyncWorker>();
 
 // E-posta: ayarlar Email:* bölümünden okunur; Password yalnızca user-secrets
 // (geliştirme) veya Email__Password ortam değişkeni (canlı) ile verilir.

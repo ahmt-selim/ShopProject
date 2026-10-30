@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OrderStatusHistory> OrderStatusHistories => Set<OrderStatusHistory>();
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<ImportTemplate> ImportTemplates => Set<ImportTemplate>();
@@ -72,6 +73,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasIndex(t => t.UserId);
             e.Property(t => t.Purpose).HasDefaultValue("password_reset");
+        });
+        modelBuilder.Entity<OrderStatusHistory>(e =>
+        {
+            e.HasIndex(h => h.OrderId);
+            e.HasOne<Order>()
+                .WithMany()
+                .HasForeignKey(h => h.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

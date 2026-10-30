@@ -21,3 +21,9 @@ frontend/node_modules/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Gizli yapýlandýrma / yerel secret'lar
+.env
+.env.*
+appsettings.*.local.json
+secrets.json

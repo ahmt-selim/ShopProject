@@ -153,6 +153,8 @@ export const api = {
 
   checkout: (addressId, items) =>
     request('/api/orders/checkout', { method: 'POST', body: JSON.stringify({ addressId, items }) }),
+  initializePayment: (addressId) =>
+    request('/api/payments/initialize', { method: 'POST', body: JSON.stringify({ addressId }) }),
   getMyOrders: () => request('/api/orders/mine'),
   getMyOrder: (id) => request(`/api/orders/mine/${id}`),
   trackOrder: (orderNo, email) =>
@@ -161,8 +163,15 @@ export const api = {
     return request(`/api/orders${qs}`);
   },
   getOrder: (id) => request(`/api/orders/${id}`),
-  setOrderStatus: (id, status) =>
-    request(`/api/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  deleteOrder: (id) => request(`/api/orders/${id}`, { method: 'DELETE' }),
+  setOrderStatus: (id, status, note) =>
+    request(`/api/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, note }) }),
+  setOrderShipping: (id, data) =>
+    request(`/api/orders/${id}/shipping`, { method: 'PUT', body: JSON.stringify(data) }),
+  setOrderNote: (id, note) =>
+    request(`/api/orders/${id}/note`, { method: 'PUT', body: JSON.stringify({ note }) }),
+  getOrderHistory: (id) => request(`/api/orders/${id}/history`),
+  getOrderCarriers: () => request('/api/orders/carriers'),
 
   getCustomers: () => request('/api/customers'),
   getCustomer: (id) => request(`/api/customers/${id}`),

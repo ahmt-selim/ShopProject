@@ -221,8 +221,11 @@ public sealed class ReviewService(AppDbContext db, IFileStorage files) : IReview
         await RefreshProductStatsAsync(productId, ct);
         await tx.CommitAsync(ct);
 
-        return (await GetReviewsAsync(productId, 1, 50, "newest", null, false, userId, ct))
-            .Items.First(i => i.Id == review.Id);
+        // Yeni yorumu yeniden sorgulamak yerine mine DTO'su döndürülür;
+        // aksi halde sıralama/filtre yarışı nedeniyle First() "Sequence contains no elements"
+        // atıp bağlantı düşebilir (frontend'de "failed to fetch").
+        return await GetMineAsync(productId, userId, ct)
+            ?? throw new ReviewNotFoundException("Yorum oluşturuldu ancak okunamadı.");
     }
 
     public async Task<ReviewDto> UpdateAsync(int reviewId, string userId, int rating,
@@ -267,8 +270,8 @@ public sealed class ReviewService(AppDbContext db, IFileStorage files) : IReview
         await RefreshProductStatsAsync(review.ProductId, ct);
         await tx.CommitAsync(ct);
 
-        return (await GetReviewsAsync(review.ProductId, 1, 50, "newest", null, false, userId, ct))
-            .Items.First(i => i.Id == review.Id);
+        return await GetMineAsync(review.ProductId, userId, ct)
+            ?? throw new ReviewNotFoundException("Yorum güncellendi ancak okunamadı.");
     }
 
     public async Task DeleteAsync(int reviewId, string userId, bool isAdmin, CancellationToken ct)

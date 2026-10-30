@@ -28,7 +28,7 @@ export default function AdminOrders() {
       <div className="table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Sipariş No</th><th>Ad Soyad</th><th>Adres</th><th>Adet</th><th>Toplam</th><th>Durum</th></tr>
+            <tr><th>Sipariş No</th><th>Ad Soyad</th><th>Adres</th><th>Adet</th><th>Toplam</th><th>Durum</th><th>Ödeme</th><th></th></tr>
           </thead>
           <tbody>
             {orders.map((o) => (
@@ -37,8 +37,12 @@ export default function AdminOrders() {
                 <td>{o.customerName}</td>
                 <td>{o.address.addressCity}/{o.address.addressDistrict}<br /><span className="muted">{o.address.addressDetail?.slice(0, 40)}</span></td>
                 <td>{o.itemsCount}</td>
-                <td>{Number(o.total).toLocaleString('tr-TR')} ₺</td>
+                <td>{Number(o.total).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</td>
                 <td><span className={`badge ${statusClass(o.status)}`}>{o.status}</span></td>
+                <td><span className={`badge ${o.payment?.status === 'Paid' ? 'ok' : 'hazir'}`}>{o.payment?.status === 'Paid' ? 'Ödendi' : 'Bekliyor'}</span></td>
+                <td>
+                  <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); if (window.confirm('Siparişi silmek istediğinize emin misiniz?')) { api.deleteOrder(o.id).then(() => { setOrders((prev) => prev.filter((x) => x.id !== o.id)); setTotal((t) => t - 1); }).catch((err) => alert(err.message)); } }}>Sil</button>
+                </td>
               </tr>
             ))}
           </tbody>

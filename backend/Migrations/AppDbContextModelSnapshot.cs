@@ -213,6 +213,26 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CardAssociation")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CardFamily")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CardLast4")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Carrier")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -228,11 +248,42 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("EstimatedDelivery")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("InstallmentCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InternalNote")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("ItemsCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("IyzicoToken")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("OrderNo")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ShippedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Shipping")
@@ -246,6 +297,14 @@ namespace Backend.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Total")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackingNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrackingUrl")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("UserId")
@@ -286,6 +345,49 @@ namespace Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("OrderItems");
+                });
+
+            modelBuilder.Entity("Backend.Models.OrderStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ChangedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromPaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ToPaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderStatusHistories");
                 });
 
             modelBuilder.Entity("Backend.Models.PasswordResetToken", b =>
@@ -548,6 +650,15 @@ namespace Backend.Migrations
                     b.HasOne("Backend.Models.Cart", null)
                         .WithMany()
                         .HasForeignKey("CartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Backend.Models.OrderStatusHistory", b =>
+                {
+                    b.HasOne("Backend.Models.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

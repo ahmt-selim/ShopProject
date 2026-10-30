@@ -19,17 +19,15 @@ function AdminShell() {
       <Header />
       {open && <div className="admin-backdrop" onClick={toggle} aria-hidden="true" />}
       <div className={`admin-shell ${open ? 'side-open' : 'side-closed'}`}>
-        {open && (
-          <aside className="admin-side">
-            <nav>
-              {items.map((i) => (
-                <NavLink key={i.to} to={i.to} className={({ isActive }) => (isActive ? 'active' : '')} onClick={() => { if (window.matchMedia('(max-width: 800px)').matches) toggle(); }}>
-                  {i.label}
-                </NavLink>
-              ))}
-            </nav>
-          </aside>
-        )}
+        <aside className="admin-side">
+          <nav>
+            {items.map((i) => (
+              <NavLink key={i.to} to={i.to} className={({ isActive }) => (isActive ? 'active' : '')} onClick={() => { if (window.matchMedia('(max-width: 800px)').matches) toggle(); }}>
+                {i.label}
+              </NavLink>
+            ))}
+          </nav>
+        </aside>
         <main className="admin-content">
           <Outlet />
         </main>
