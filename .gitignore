@@ -22,8 +22,8 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Gizli yapýlandýrma / yerel secret'lar
+# Gizli yapÄ±landÄ±rma / yerel secret'lar
 .env
-.env.*
+.env.*.local
 appsettings.*.local.json
 secrets.json
