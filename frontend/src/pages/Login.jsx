@@ -27,6 +27,7 @@ export default function Login() {
   const [notice, setNotice] = useState('');
   const [resending, setResending] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -34,7 +35,8 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setNotice('');
-    setAttempted(true);
+    setAttempted(false);
+    setNetworkError(false);
     try {
       const user = await login(email, password);
       if (!user.emailConfirmed) {
@@ -43,7 +45,12 @@ export default function Login() {
       }
       navigate(user.role === 'admin' ? '/admin/products' : '/');
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || '';
+      const isNet = err instanceof TypeError ||
+        /failed to fetch|networkerror|network error|load failed/i.test(msg);
+      setNetworkError(isNet);
+      setError(msg);
+      setAttempted(true);
     }
   };
 
@@ -76,7 +83,7 @@ export default function Login() {
         <p>
           <Link to="/forgot-password">Sifremi unuttum</Link>
         </p>
-        {attempted && (
+        {attempted && !networkError && (
           <p>
             <button type="button" className="btn" onClick={resend} disabled={resending}>
               {resending ? 'Gonderiliyor...' : 'Dogrulama kodunu tekrar gonder'}

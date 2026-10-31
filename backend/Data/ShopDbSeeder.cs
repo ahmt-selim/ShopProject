@@ -60,7 +60,7 @@ public static class ShopDbSeeder
         var defaults = new Dictionary<string, string>
         {
             ["storeName"] = "ihtiyacın3D",
-            ["supportEmail"] = "destek@ihtiyacin3d.com",
+            ["supportEmail"] = "destek@ihtiyacin3d.com.tr",
             ["supportPhone"] = "0850 000 00 00",
             ["storeAddress"] = "İstanbul, Türkiye",
             ["currency"] = "₺",
