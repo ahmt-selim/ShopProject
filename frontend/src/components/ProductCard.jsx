@@ -33,7 +33,14 @@ export default function ProductCard({ product }) {
         <div className="card-cat">{product.categoryName}</div>
         <Link to={`/product/${product.id}`} className="card-title" title={product.name}>{product.name}</Link>
         <StarRating value={product.averageRating} reviewCount={product.reviewCount ?? 0} size={14} />
-        <div className="card-price">{Number(product.price).toLocaleString('tr-TR')} ₺</div>
+        <div className="card-price">
+          {product.listPrice && Number(product.listPrice) > Number(product.price) ? (
+            <span style={{ textDecoration: 'line-through', color: '#999', marginRight: 6, fontSize: '0.9em' }}>
+              {Number(product.listPrice).toLocaleString('tr-TR')} ₺
+            </span>
+          ) : null}
+          {Number(product.price).toLocaleString('tr-TR')} ₺
+        </div>
         <div className="row">
           <AddToCartButton product={product} />
           <button className={`icon-btn fav ${fav ? 'on' : ''}`} onClick={onHeart} title={fav ? 'Favoriden çıkar' : 'Favoriye ekle'}>

@@ -199,7 +199,14 @@ export default function ProductDetail() {
             <StarRating value={p.averageRating} reviewCount={p.reviewCount ?? 0} size={16} />
           </button>
           <p className="muted">{p.description}</p>
-          <div className="card-price big">{Number(p.price).toLocaleString('tr-TR')} ₺</div>
+          <div className="card-price big">
+            {p.listPrice && Number(p.listPrice) > Number(p.price) ? (
+              <span style={{ textDecoration: 'line-through', color: '#999', marginRight: 8, fontSize: '0.85em' }}>
+                {Number(p.listPrice).toLocaleString('tr-TR')} ₺
+              </span>
+            ) : null}
+            {Number(p.price).toLocaleString('tr-TR')} ₺
+          </div>
           {freeShip && <span className="ship-badge inline">Kargo Bedava</span>}
           {(p.productCode || p.barcode) && (
             <div className="muted">Ürün Kodu: {p.productCode || '-'} | Barkod: {p.barcode || '-'}</div>
