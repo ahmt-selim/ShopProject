@@ -275,6 +275,7 @@ public static class ShopDbSeeder
                 "Name" TEXT NOT NULL,
                 "Description" TEXT NOT NULL,
                 "Price" TEXT NOT NULL,
+                "ListPrice" TEXT NOT NULL DEFAULT '0',
                 "ProductCode" TEXT NOT NULL DEFAULT '',
                 "Barcode" TEXT NOT NULL DEFAULT '',
                 "VatRate" TEXT NOT NULL DEFAULT '20',
@@ -383,7 +384,7 @@ public static class ShopDbSeeder
             CREATE INDEX IF NOT EXISTS "IX_ReviewImages_ReviewId" ON "ReviewImages" ("ReviewId");
             """);
 
-        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'"), ("AverageRating", "REAL NOT NULL DEFAULT 0"), ("ReviewCount", "INTEGER NOT NULL DEFAULT 0") })
+        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'"), ("AverageRating", "REAL NOT NULL DEFAULT 0"), ("ReviewCount", "INTEGER NOT NULL DEFAULT 0"), ("ListPrice", "TEXT NOT NULL DEFAULT '0'") })
         {
             if (!TableColumns(db, "Products").Contains(col.Item1))
                 db.Database.ExecuteSqlRaw($"""ALTER TABLE "Products" ADD COLUMN "{col.Item1}" {col.Item2}""");

@@ -12,7 +12,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
 {
     public record UpsertDto(
         string Name, string Description, decimal Price,
-        string? ProductCode, string? Barcode, decimal? VatRate,
+        decimal? ListPrice, string? ProductCode, string? Barcode, decimal? VatRate,
         int CategoryId, int? BrandId, int Stock);
 
     [HttpGet]
@@ -84,6 +84,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
             Name = dto.Name.Trim(),
             Description = dto.Description?.Trim() ?? "",
             Price = dto.Price,
+            ListPrice = dto.ListPrice ?? 0,
             ProductCode = dto.ProductCode?.Trim() ?? "",
             Barcode = dto.Barcode?.Trim() ?? "",
             VatRate = dto.VatRate ?? 20,
@@ -108,6 +109,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
         p.Name = dto.Name.Trim();
         p.Description = dto.Description?.Trim() ?? "";
         p.Price = dto.Price;
+        p.ListPrice = dto.ListPrice ?? 0;
         p.ProductCode = dto.ProductCode?.Trim() ?? "";
         p.Barcode = dto.Barcode?.Trim() ?? "";
         p.VatRate = dto.VatRate ?? 20;
@@ -151,6 +153,8 @@ public class ProductsController(AppDbContext db) : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return "Ürün adı zorunlu.";
         if (dto.Price < 0) return "Fiyat negatif olamaz.";
+        if (dto.ListPrice.HasValue && dto.ListPrice.Value < 0) return "Liste fiyatı negatif olamaz.";
+        if (dto.ListPrice.HasValue && dto.ListPrice.Value > 0 && dto.ListPrice.Value < dto.Price) return "Liste fiyatı normal fiyattan düşük olamaz.";
         if (dto.Stock < 0) return "Adet negatif olamaz.";
         if (dto.VatRate is < 0 or > 100) return "KDV 0-100 arasında olmalı.";
         if (!db.Categories.Any(c => c.Id == dto.CategoryId)) return "Geçersiz kategori.";
@@ -165,6 +169,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
         p.Name,
         p.Description,
         p.Price,
+        p.ListPrice,
         p.ProductCode,
         p.Barcode,
         p.VatRate,

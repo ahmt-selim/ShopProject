@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 
-const empty = { name: '', description: '', price: '', stock: '', categoryId: '', brandId: '', productCode: '', barcode: '', vatRate: '20' };
+const empty = { name: '', description: '', price: '', listPrice: '', stock: '', categoryId: '', brandId: '', productCode: '', barcode: '', vatRate: '20' };
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -26,7 +26,7 @@ export default function ProductForm() {
     api.getBrands().then(setBrands).catch(console.error);
     if (!isNew) {
       api.getProduct(id).then((p) => setForm({
-        name: p.name, description: p.description, price: p.price, stock: p.stock,
+        name: p.name, description: p.description, price: p.price, listPrice: p.listPrice ?? '', stock: p.stock,
         categoryId: p.categoryId, brandId: p.brandId || '',
         productCode: p.productCode || '', barcode: p.barcode || '', vatRate: p.vatRate ?? '20',
       })).catch(console.error);
@@ -85,6 +85,10 @@ export default function ProductForm() {
   const submit = async (e) => {
     e.preventDefault();
     setMsg('');
+    if (form.listPrice !== '' && Number(form.listPrice) < Number(form.price)) {
+      setMsg('Liste fiyatı normal fiyattan düşük olamaz.');
+      return;
+    }
     if (!isNew && (id === 'undefined' || !/^\d+$/.test(id))) {
       setMsg('Geçersiz ürün id. Listeden bir ürüne tıklayarak düzenleyin.');
       return;
@@ -93,6 +97,7 @@ export default function ProductForm() {
       name: form.name,
       description: form.description,
       price: Number(form.price),
+      listPrice: form.listPrice === '' ? null : Number(form.listPrice),
       stock: Number(form.stock),
       categoryId: Number(form.categoryId),
       brandId: form.brandId ? Number(form.brandId) : null,
@@ -119,7 +124,14 @@ export default function ProductForm() {
 
   return (
     <>
-      <h2>{isNew ? 'Yeni Ürün' : `Ürün Düzenle #${id}`}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>{isNew ? 'Yeni Ürün' : `Ürün Düzenle #${id}`}</h2>
+        {!isNew && (
+          <button className="btn" type="button" onClick={() => window.open(`/product/${id}`, '_blank', 'noopener,noreferrer')}>
+            Ürüne Git
+          </button>
+        )}
+      </div>
       {msg && <div className="error">{msg}</div>}
       <form onSubmit={submit} className="form">
         <div className="row2">
@@ -146,6 +158,9 @@ export default function ProductForm() {
         </div>
         <div className="row2">
           <label>Fiyat (₺)*<input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required /></label>
+          <label>Liste Fiyatı (₺)<input type="number" step="0.01" min="0" value={form.listPrice} onChange={(e) => setForm({ ...form, listPrice: e.target.value })} /></label>
+        </div>
+        <div className="row2">
           <label>KDV (%)*<input type="number" step="0.01" min="0" max="100" value={form.vatRate} onChange={(e) => setForm({ ...form, vatRate: e.target.value })} required /></label>
         </div>
         <label>Açıklama<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
