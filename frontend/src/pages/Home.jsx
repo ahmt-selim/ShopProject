@@ -6,7 +6,13 @@ import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 
-const PAGE_SIZE = 20;
+function computePageSize() {
+  if (typeof window === 'undefined') return 20;
+  const cols = Math.max(1, Math.floor((window.innerWidth - 260) / 236));
+  const rows = Math.max(3, Math.ceil((window.innerHeight - 200) / 280));
+  const size = cols * rows;
+  return Math.min(60, Math.max(12, size));
+}
 
 export default function Home() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +23,8 @@ export default function Home() {
     return c > 0 ? c : null;
   });
   const [q, setQ] = useState('');
+  const [sort, setSort] = useState('varsayilan');
+  const [pageSize, setPageSize] = useState(() => computePageSize());
   const [page, setPage] = useState(() => {
     const p = Number(searchParams.get('page'));
     return p > 0 ? p : 1;
@@ -27,6 +35,28 @@ export default function Home() {
 
   useEffect(() => {
     api.getCategories().then(setCategories).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    let t;
+    const onResize = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const next = computePageSize();
+        setPageSize((prev) => {
+          if (prev !== next) {
+            setPage(1);
+            return next;
+          }
+          return prev;
+        });
+      }, 200);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   useEffect(() => {
@@ -46,7 +76,7 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => {
-      api.getProducts(selected, q.trim() || undefined, page, PAGE_SIZE)
+      api.getProducts(selected, q.trim() || undefined, page, pageSize, sort)
         .then((res) => {
           setProducts(res.items || []);
           setTotal(res.total || 0);
@@ -72,7 +102,7 @@ export default function Home() {
         });
     }, 300);
     return () => clearTimeout(t);
-  }, [selected, q, page]);
+  }, [selected, q, page, sort, pageSize]);
 
   useEffect(() => {
     const save = () => {
@@ -118,6 +148,21 @@ export default function Home() {
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Ürün adı, kodu veya barkod ile ara..."
       />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <select
+          className="admin-select"
+          value={sort}
+          onChange={(e) => { setSort(e.target.value); setPage(1); }}
+          aria-label="Sıralama"
+        >
+          <option value="varsayilan">Varsayılan</option>
+          <option value="bestseller">En çok satan</option>
+          <option value="priceAsc">Fiyat: Düşükten Yükseğe</option>
+          <option value="priceDesc">Fiyat: Yüksekten Düşüğe</option>
+          <option value="nameAsc">İsim: A-Z</option>
+          <option value="nameDesc">İsim: Z-A</option>
+        </select>
+      </div>
       {loading ? <div className="page-spinner"><span className="spinner" /></div> : (
         products.length === 0 ? <p>Ürün bulunamadı.</p> : (
           <>

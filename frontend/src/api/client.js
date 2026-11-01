@@ -45,12 +45,13 @@ export const statusClass = (s) =>
   s === 'Kargoda' ? 'kargo' : s === 'Teslim Edildi' ? 'ok' : s?.startsWith('İptal') ? 'iptal' : 'hazir';
 
 export const api = {
-  getProducts: (categoryId, q, page, pageSize) => {
+  getProducts: (categoryId, q, page, pageSize, sort) => {
     const params = new URLSearchParams();
     if (categoryId) params.set('categoryId', categoryId);
     if (q) params.set('q', q);
     if (page) params.set('page', page);
     if (pageSize) params.set('pageSize', pageSize);
+    if (sort) params.set('sort', sort);
     const qs = params.toString();
     return request(`/api/products${qs ? `?${qs}` : ''}`);
   },

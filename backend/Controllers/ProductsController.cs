@@ -18,7 +18,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public ActionResult<object> GetAll(
         [FromQuery] int? categoryId, [FromQuery] string? q, [FromQuery] int? brandId,
-        [FromQuery] int? page, [FromQuery] int? pageSize)
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort)
     {
         var query = db.Products.AsQueryable();
 
@@ -31,7 +31,17 @@ public class ProductsController(AppDbContext db) : ControllerBase
         if (!string.IsNullOrWhiteSpace(q))
             query = query.Where(p => p.Name.Contains(q) || p.ProductCode.Contains(q) || p.Barcode.Contains(q));
 
-        query = query.OrderByDescending(p => p.Id);
+        query = sort switch
+        {
+            "bestseller" or "mostsold" => query
+                .OrderByDescending(p => db.OrderItems.Where(oi => oi.ProductId == p.Id).Sum(oi => (int?)oi.Qty) ?? 0)
+                .ThenByDescending(p => p.Id),
+            "priceAsc" => query.OrderBy(p => p.Price).ThenBy(p => p.Id),
+            "priceDesc" => query.OrderByDescending(p => p.Price).ThenByDescending(p => p.Id),
+            "nameAsc" => query.OrderBy(p => p.Name).ThenBy(p => p.Id),
+            "nameDesc" => query.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id),
+            _ => query.OrderByDescending(p => p.Id)
+        };
 
         if (page.HasValue)
         {
