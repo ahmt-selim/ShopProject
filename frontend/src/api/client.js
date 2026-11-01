@@ -224,6 +224,20 @@ export const api = {
   },
   getReviewSummary: (productId) => request(`/api/products/${productId}/reviews/summary`),
   getReviewEligibility: (productId) => request(`/api/products/${productId}/reviews/eligibility`),
+  getSimilarProducts: (productId) => request(`/api/products/${productId}/similar`),
+  getAdminSimilarProducts: (productId) => request(`/api/admin/products/${productId}/similar`),
+  updateAdminSimilarProducts: (productId, similarProductIds, bidirectional = true) =>
+    request(`/api/admin/products/${productId}/similar`, {
+      method: 'PUT',
+      body: JSON.stringify({ similarProductIds, bidirectional }),
+    }),
+  searchAdminProducts: (q, excludeProductId) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (excludeProductId) params.set('excludeProductId', excludeProductId);
+    const qs = params.toString();
+    return request(`/api/admin/products/search${qs ? `?${qs}` : ''}`);
+  },
   getMyReview: (productId) => request(`/api/products/${productId}/reviews/mine`),
   createReview: (productId, { rating, title, comment, images }) => {
     const form = new FormData();

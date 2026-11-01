@@ -16,6 +16,15 @@ export default function ProductForm() {
   const [urlInput, setUrlInput] = useState('');
   const [msg, setMsg] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [similarItems, setSimilarItems] = useState([]);
+  const [similarSearch, setSimilarSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerProducts, setPickerProducts] = useState([]);
+  const [pickerSelected, setPickerSelected] = useState(() => new Set());
+  const [bidirectional, setBidirectional] = useState(true);
+  const SIMILAR_MAX = 12;
+  const MIN_DISPLAY = 6;
 
   const loadImages = () => {
     if (!isNew) api.getProductImages(id).then(setImages).catch(console.error);
@@ -26,11 +35,12 @@ export default function ProductForm() {
     api.getBrands().then(setBrands).catch(console.error);
     if (!isNew) {
       api.getProduct(id).then((p) => setForm({
-        name: p.name, description: p.description, price: p.price, listPrice: p.listPrice ?? '', stock: p.stock,
+        name: p.name, description: p.description, price: p.price, listPrice: p.listPrice ? p.listPrice : '', stock: p.stock,
         categoryId: p.categoryId, brandId: p.brandId || '',
         productCode: p.productCode || '', barcode: p.barcode || '', vatRate: p.vatRate ?? '20',
       })).catch(console.error);
       loadImages();
+      api.getAdminSimilarProducts(id).then(setSimilarItems).catch(console.error);
     }
   }, [id]);
 
@@ -85,7 +95,7 @@ export default function ProductForm() {
   const submit = async (e) => {
     e.preventDefault();
     setMsg('');
-    if (form.listPrice !== '' && Number(form.listPrice) < Number(form.price)) {
+    if (form.listPrice !== '' && Number(form.listPrice) > 0 && Number(form.listPrice) < Number(form.price)) {
       setMsg('Liste fiyatı normal fiyattan düşük olamaz.');
       return;
     }
@@ -113,11 +123,88 @@ export default function ProductForm() {
         }
       } else {
         await api.updateProduct(id, payload);
+        // Benzer ürünleri tek istekte güncelle (sıralı + karşılıklı seçenek).
+        await api.updateAdminSimilarProducts(id, similarItems.map((x) => x.id), bidirectional);
       }
-      navigate('/admin/products');
+      // Kaydet sonrası ürün düzenleme sayfasında kal; benzer listesini yeniden yükle.
+      api.getAdminSimilarProducts(id).then(setSimilarItems).catch(console.error);
+      setMsg('Kaydedildi.');
     } catch (err) {
       setMsg(err.message);
     }
+  };
+
+  // Listeden seç paneli: açıldığında veya arama değiştiğinde ürünleri yükle.
+  useEffect(() => {
+    if (!pickerOpen || isNew) return;
+    const load = similarSearch.trim()
+      ? api.searchAdminProducts(similarSearch.trim(), id)
+      : api.getProducts(undefined, '', 1, 100).then((res) => (Array.isArray(res) ? res : (res.items || [])));
+    Promise.resolve(load)
+      .then((items) => {
+        const arr = Array.isArray(items) ? items : (items.items || []);
+        const selected = new Set(similarItems.map((x) => x.id));
+        setPickerProducts(arr.filter((p) => p.id !== Number(id) && !selected.has(p.id)));
+      })
+      .catch(console.error);
+  }, [pickerOpen, similarSearch, similarItems, id, isNew]);
+
+  // Debounce'lu benzer ürün arama.
+  useEffect(() => {
+    if (isNew) return;
+    if (!similarSearch.trim()) { setSearchResults([]); return; }
+    const t = setTimeout(() => {
+      api.searchAdminProducts(similarSearch.trim(), id)
+        .then((res) => {
+          const selected = new Set(similarItems.map((x) => x.id));
+          setSearchResults((res || []).filter((r) => !selected.has(r.id)));
+        })
+        .catch(console.error);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [similarSearch, similarItems, id, isNew]);
+
+  const addSimilar = (prod) => {
+    if (similarItems.length >= SIMILAR_MAX) {
+      setMsg(`Manuel benzer ürün sayısı en fazla ${SIMILAR_MAX} olabilir.`);
+      return;
+    }
+    setSimilarItems((prev) => [...prev, prod]);
+    setSearchResults((prev) => prev.filter((x) => x.id !== prod.id));
+    setSimilarSearch('');
+  };
+
+  const removeSimilar = (pid) => {
+    setSimilarItems((prev) => prev.filter((x) => x.id !== pid));
+  };
+
+  const moveSimilar = (index, dir) => {
+    setSimilarItems((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const togglePickerItem = (pid, checked) => {
+    setPickerSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(pid); else next.delete(pid);
+      return next;
+    });
+  };
+
+  const addPicked = () => {
+    const selectedProducts = pickerProducts.filter((p) => pickerSelected.has(p.id));
+    setSimilarItems((prev) => {
+      const remaining = SIMILAR_MAX - prev.length;
+      const toAdd = selectedProducts.slice(0, remaining);
+      return [...prev, ...toAdd];
+    });
+    setPickerSelected(new Set());
+    setPickerOpen(false);
   };
 
   const rows = isNew ? staged : images;
@@ -194,7 +281,115 @@ export default function ProductForm() {
           </table>
         </div>
       )}
-      {isNew && <p className="muted">Yeni üründe resimler Kaydet'e basınca ürüne işlenir.</p>}
+      {isNew && <p className="muted">Yeni üründe resimler Kaydet&apos;e basınca ürüne işlenir.</p>}
+
+      {!isNew && (
+        <section className="form" style={{ marginTop: 16 }}>
+          <h3>Benzer Ürünler ({similarItems.length}/{SIMILAR_MAX})</h3>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <input
+              value={similarSearch}
+              onChange={(e) => setSimilarSearch(e.target.value)}
+              placeholder="Ürün ara (ad, kod, barkod)..."
+              disabled={similarItems.length >= SIMILAR_MAX}
+              style={{ flex: 1 }}
+            />
+            <button
+              type="button"
+              className="btn"
+              disabled={similarItems.length >= SIMILAR_MAX}
+              onClick={() => {
+                if (pickerOpen && pickerSelected.size > 0) {
+                  addPicked();
+                } else {
+                  setPickerOpen((o) => !o);
+                }
+              }}
+            >
+              {pickerOpen
+                ? (pickerSelected.size > 0 ? `Seçilenleri Ekle (${pickerSelected.size})` : 'Kapat')
+                : 'Listeden seç'}
+            </button>
+          </div>
+          {pickerOpen && (
+            <div className="table-wrap" style={{ marginBottom: 8, maxHeight: 320, overflow: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr><th></th><th>Ürün</th><th>Fiyat</th><th>Stok</th></tr>
+                </thead>
+                <tbody>
+                  {pickerProducts
+                    .filter((p) => {
+                      const q = similarSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        String(p.name || '').toLowerCase().includes(q) ||
+                        String(p.productCode || '').toLowerCase().includes(q) ||
+                        String(p.barcode || '').toLowerCase().includes(q) ||
+                        String(p.id).includes(q)
+                      );
+                    })
+                    .map((p) => (
+                    <tr
+                      key={p.id}
+                      onClick={() => togglePickerItem(p.id, !pickerSelected.has(p.id))}
+                      style={{
+                        cursor: 'pointer',
+                        background: pickerSelected.has(p.id) ? '#dceeff' : undefined,
+                      }}
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={pickerSelected.has(p.id)}
+                          onChange={(e) => togglePickerItem(p.id, e.target.checked)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td><img className="timg" src={api.imageUrl(p.imageUrl || p.image) || api.primaryImage(p)} alt="" /> #{p.id} {p.name}</td>
+                      <td>{Number(p.price).toLocaleString('tr-TR')} ₺</td>
+                      <td>{p.stock}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ padding: 8 }}>
+                <button type="button" className="btn" onClick={addPicked} disabled={pickerSelected.size === 0}>Seçilenleri ekle ({pickerSelected.size})</button>
+              </div>
+            </div>
+          )}
+          {similarItems.length >= SIMILAR_MAX && (
+            <p className="muted">Manuel limit doldu; yeni ürün eklenemez.</p>
+          )}
+          {/* Arama sonuçları da aynı çoklu seç panelinde checkbox ile seçilebilir. */}
+          {similarItems.length > 0 && (
+            <div className="table-wrap">
+              <table className="table">
+                <tbody>
+                  {similarItems.map((it, idx) => (
+                    <tr key={it.id}>
+                      <td><img className="timg" src={api.imageUrl(it.imageUrl || it.image) || api.primaryImage(it)} alt="" /></td>
+                      <td>#{it.id} {it.name}</td>
+                      <td>{Number(it.price).toLocaleString('tr-TR')} ₺</td>
+                      <td>
+                        <button type="button" className="hbtn" onClick={() => moveSimilar(idx, -1)} disabled={idx === 0}>↑</button>
+                        <button type="button" className="hbtn" onClick={() => moveSimilar(idx, 1)} disabled={idx === similarItems.length - 1}>↓</button>
+                        <button type="button" className="hbtn" onClick={() => removeSimilar(it.id)}>Kaldır</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <input type="checkbox" checked={bidirectional} onChange={(e) => setBidirectional(e.target.checked)} />
+            Karşılıklı ekle/kaldır
+          </label>
+          <p className="muted">Seçilen ürünlerin benzer listesine bu ürün de eklenecek.</p>
+          <p className="muted">Manuel eklenen ürün sayısı {MIN_DISPLAY}&apos;den azsa müşteriye aynı kategorideki ürünler otomatik gösterilir.</p>
+        </section>
+      )}
 
       <div className="save-bar">
         <button className="hbtn" onClick={() => navigate('/admin/products')}>Vazgeç</button>

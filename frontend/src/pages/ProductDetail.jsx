@@ -6,6 +6,7 @@ import { IconEdit, IconHeart } from '../components/icons';
 import AddToCartButton from '../components/AddToCartButton';
 import StarRating from '../components/StarRating';
 import ReviewsSection from '../components/reviews/ReviewsSection';
+import SimilarProductsCarousel from '../components/SimilarProductsCarousel';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
 import { useFavorites } from '../store/FavoritesContext';
@@ -223,6 +224,7 @@ export default function ProductDetail() {
         </div>
       </div>
       <ReviewsSection productId={p.id} onSummaryChange={handleSummary} />
+      <SimilarProductsCarousel productId={p.id} />
       {lightbox && (
         <div className="lightbox gallery-lightbox" onClick={() => {
           if (lightboxSwipe.wasSwiped()) return;

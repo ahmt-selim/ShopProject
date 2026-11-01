@@ -10,6 +10,7 @@ using Backend.Logging;
 using Backend.Services.Files;
 using Backend.Services.Payments;
 using Backend.Services.Reviews;
+using Backend.Services.SimilarProducts;
 using Backend.Services.Cargo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -29,6 +30,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<ISimilarProductService, SimilarProductService>();
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddOptions<IyzicoOptions>()

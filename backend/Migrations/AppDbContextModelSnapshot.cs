@@ -594,6 +594,37 @@ namespace Backend.Migrations
                     b.ToTable("Settings");
                 });
 
+            modelBuilder.Entity("Backend.Models.SimilarProduct", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SimilarProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SimilarProductId");
+
+                    b.HasIndex("ProductId", "SimilarProductId")
+                        .IsUnique();
+
+                    b.ToTable("SimilarProducts", t =>
+                        {
+                            t.HasCheckConstraint("CK_SimilarProducts_NotSelf", "\"ProductId\" <> \"SimilarProductId\"");
+                        });
+                });
+
             modelBuilder.Entity("Backend.Models.User", b =>
                 {
                     b.Property<string>("Id")
@@ -691,6 +722,32 @@ namespace Backend.Migrations
                         .HasForeignKey("ReviewId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Backend.Models.SimilarProduct", b =>
+                {
+                    b.HasOne("Backend.Models.Product", "SourceProduct")
+                        .WithMany("SimilarProductsOut")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Backend.Models.Product", "TargetProduct")
+                        .WithMany("SimilarProductsIn")
+                        .HasForeignKey("SimilarProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourceProduct");
+
+                    b.Navigation("TargetProduct");
+                });
+
+            modelBuilder.Entity("Backend.Models.Product", b =>
+                {
+                    b.Navigation("SimilarProductsIn");
+
+                    b.Navigation("SimilarProductsOut");
                 });
 #pragma warning restore 612, 618
         }

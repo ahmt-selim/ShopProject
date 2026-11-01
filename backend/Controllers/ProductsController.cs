@@ -126,6 +126,9 @@ public class ProductsController(AppDbContext db) : ControllerBase
     {
         var p = db.Products.Find(id);
         if (p is null) return NotFound();
+        // Benzer ürün ilişkilerini her iki yönde temizle (hedef taraf Restrict olduğu için
+        // manuel silinmeli; aksi halde silme başarısız olur).
+        db.SimilarProducts.Where(s => s.ProductId == id || s.SimilarProductId == id).ExecuteDelete();
         db.Products.Remove(p);
         db.ProductImages.Where(i => i.ProductId == id).ExecuteDelete();
         db.Favorites.Where(f => f.ProductId == id).ExecuteDelete();

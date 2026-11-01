@@ -447,3 +447,40 @@ span.rev-thumb { cursor: default; }
   .admin-side nav { flex-direction: column; flex-wrap: nowrap; }
   .admin-backdrop { display: block; position: fixed; inset: 0; top: 60px; background: rgba(0,0,0,0.25); z-index: 4; }
 }
+/* Similar products carousel */
+.similar-section { margin-top: 32px; }
+.similar-section h3 { margin-bottom: 12px; }
+.similar-carousel-wrap { position: relative; }
+.similar-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.similar-card {
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+}
+.similar-card-img { position: relative; aspect-ratio: 4/3; overflow: hidden; }
+.similar-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.similar-badge.oos {
+  position: absolute; top: 8px; left: 8px;
+  background: #d33; color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px;
+}
+.similar-card-body { padding: 8px; }
+.similar-card-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.similar-nav {
+  position: absolute; top: 40%; transform: translateY(-50%);
+  z-index: 2; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid #ddd; background: #fff; cursor: pointer;
+}
+.similar-nav.left { left: -12px; }
+.similar-nav.right { right: -12px; }

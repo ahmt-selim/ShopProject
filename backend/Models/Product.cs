@@ -16,4 +16,9 @@ public class Product
     // SQLite AVG çevirisi için double; tek ondalık Math.Round ile.
     public double AverageRating { get; set; }
     public int ReviewCount { get; set; }
+
+    // Benzer ürünler: kaynak (bu ürünün benzer listesi) ve hedef (başka ürünlerin
+    // benzer listesinde bu ürün) olmak üzere iki ayrı navigation.
+    public ICollection<SimilarProduct> SimilarProductsOut { get; set; } = new List<SimilarProduct>();
+    public ICollection<SimilarProduct> SimilarProductsIn { get; set; } = new List<SimilarProduct>();
 }

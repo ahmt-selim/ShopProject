@@ -21,6 +21,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<ReviewImage> ReviewImages => Set<ReviewImage>();
+    public DbSet<SimilarProduct> SimilarProducts => Set<SimilarProduct>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -69,6 +70,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasForeignKey(i => i.ReviewId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+        // Benzer ürünler: (ProductId, SimilarProductId) unique; self-check.
+        // Kaynak taraf cascade, hedef taraf Restrict (multiple cascade path önlemi).
+        // Silme serviste yönetilir (SimilarProductsOut/In temizlenir).
+        modelBuilder.Entity<SimilarProduct>(e =>
+        {
+            e.HasIndex(s => new { s.ProductId, s.SimilarProductId }).IsUnique();
+            e.ToTable(t => t.HasCheckConstraint("CK_SimilarProducts_NotSelf", "\"ProductId\" <> \"SimilarProductId\""));
+            e.HasOne(s => s.SourceProduct)
+                .WithMany(p => p.SimilarProductsOut)
+                .HasForeignKey(s => s.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.TargetProduct)
+                .WithMany(p => p.SimilarProductsIn)
+                .HasForeignKey(s => s.SimilarProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<PasswordResetToken>(e =>
         {
             e.HasIndex(t => t.UserId);
