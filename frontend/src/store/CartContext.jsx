@@ -64,7 +64,7 @@ export function CartProvider({ children }) {
           i.id === product.id ? { ...i, qty: i.qty + qty } : i
         );
       }
-      return [...prev, { id: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl || api.primaryImage(product), qty }];
+      return [...prev, { id: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl || api.primaryImage(product), qty, isCustomizable: !!product.isCustomizable, maxCustomTextLength: product.maxCustomTextLength || 0 }];
     });
   };
 

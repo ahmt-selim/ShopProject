@@ -112,7 +112,9 @@ public class CartController(AppDbContext db) : ControllerBase
                     imageUrl = db.PrimaryImageUrl(i.ProductId),
                     averageRating = products[i.ProductId].AverageRating,
                     reviewCount = products[i.ProductId].ReviewCount,
-                    qty = i.Qty
+                    qty = i.Qty,
+                    isCustomizable = products[i.ProductId].IsCustomizable,
+                    maxCustomTextLength = products[i.ProductId].MaxCustomTextLength
                 })
         };
     }

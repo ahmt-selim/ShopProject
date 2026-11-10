@@ -154,8 +154,8 @@ export const api = {
 
   checkout: (addressId, items) =>
     request('/api/orders/checkout', { method: 'POST', body: JSON.stringify({ addressId, items }) }),
-  initializePayment: (addressId) =>
-    request('/api/payments/initialize', { method: 'POST', body: JSON.stringify({ addressId }) }),
+  initializePayment: (addressId, customTexts) =>
+    request('/api/payments/initialize', { method: 'POST', body: JSON.stringify({ addressId, customTexts }) }),
   getMyOrders: () => request('/api/orders/mine'),
   getMyOrder: (id) => request(`/api/orders/mine/${id}`),
   trackOrder: (orderNo, email) =>

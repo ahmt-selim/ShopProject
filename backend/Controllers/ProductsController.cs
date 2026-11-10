@@ -13,42 +13,54 @@ public class ProductsController(AppDbContext db) : ControllerBase
     public record UpsertDto(
         string Name, string Description, decimal Price,
         decimal? ListPrice, string? ProductCode, string? Barcode, decimal? VatRate,
-        int CategoryId, int? BrandId, int Stock);
+        int CategoryId, int? BrandId, int Stock,
+        bool? IsCustomizable, int? MaxCustomTextLength);
 
     [HttpGet]
     public ActionResult<object> GetAll(
         [FromQuery] int? categoryId, [FromQuery] string? q, [FromQuery] int? brandId,
         [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort)
     {
-        var query = db.Products.AsQueryable();
+        var baseQuery = db.Products.AsQueryable();
 
         if (categoryId.HasValue)
-            query = query.Where(p => p.CategoryId == categoryId.Value);
+            baseQuery = baseQuery.Where(p => p.CategoryId == categoryId.Value);
 
         if (brandId.HasValue)
-            query = query.Where(p => p.BrandId == brandId.Value);
+            baseQuery = baseQuery.Where(p => p.BrandId == brandId.Value);
+
+        var list = baseQuery.ToList();
 
         if (!string.IsNullOrWhiteSpace(q))
-            query = query.Where(p => p.Name.Contains(q) || p.ProductCode.Contains(q) || p.Barcode.Contains(q));
-
-        query = sort switch
         {
-            "bestseller" or "mostsold" => query
-                .OrderByDescending(p => db.OrderItems.Where(oi => oi.ProductId == p.Id).Sum(oi => (int?)oi.Qty) ?? 0)
-                .ThenByDescending(p => p.Id),
-            "priceAsc" => query.OrderBy(p => p.Price).ThenBy(p => p.Id),
-            "priceDesc" => query.OrderByDescending(p => p.Price).ThenByDescending(p => p.Id),
-            "nameAsc" => query.OrderBy(p => p.Name).ThenBy(p => p.Id),
-            "nameDesc" => query.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id),
-            _ => query.OrderByDescending(p => p.Id)
+            list = list.Where(p =>
+                (p.Name ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                (p.ProductCode ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                (p.Barcode ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        var soldCounts = db.OrderItems
+            .GroupBy(oi => oi.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(oi => oi.Qty));
+
+        list = sort switch
+        {
+            "bestseller" or "mostsold" => list
+                .OrderByDescending(p => soldCounts.TryGetValue(p.Id, out var sc) ? sc : 0)
+                .ThenByDescending(p => p.Id).ToList(),
+            "priceAsc" => list.OrderBy(p => p.Price).ThenBy(p => p.Id).ToList(),
+            "priceDesc" => list.OrderByDescending(p => p.Price).ThenByDescending(p => p.Id).ToList(),
+            "nameAsc" => list.OrderBy(p => p.Name).ThenBy(p => p.Id).ToList(),
+            "nameDesc" => list.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id).ToList(),
+            _ => list.OrderByDescending(p => p.Id).ToList()
         };
 
         if (page.HasValue)
         {
             var size = Math.Clamp(pageSize ?? 20, 1, 100);
             var p = Math.Max(page.Value, 1);
-            var total = query.Count();
-            var items = query.Skip((p - 1) * size).Take(size).ToList();
+            var total = list.Count;
+            var items = list.Skip((p - 1) * size).Take(size).ToList();
             return Ok(new
             {
                 items = items.Select(x => ToDto(x, CatNames(), BrandNames(), ImagesMap(items.Select(x => x.Id)))),
@@ -59,8 +71,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
             });
         }
 
-        var products = query.ToList();
-        return Ok(products.Select(p => ToDto(p, CatNames(), BrandNames(), ImagesMap(products.Select(x => x.Id)))));
+        return Ok(list.Select(p => ToDto(p, CatNames(), BrandNames(), ImagesMap(list.Select(x => x.Id)))));
     }
 
     [HttpGet("{id:int}")]
@@ -90,7 +101,9 @@ public class ProductsController(AppDbContext db) : ControllerBase
             VatRate = dto.VatRate ?? 20,
             CategoryId = dto.CategoryId,
             BrandId = dto.BrandId,
-            Stock = dto.Stock
+            Stock = dto.Stock,
+            IsCustomizable = dto.IsCustomizable ?? false,
+            MaxCustomTextLength = dto.MaxCustomTextLength ?? 0
         };
         db.Products.Add(p);
         db.SaveChanges();
@@ -116,6 +129,8 @@ public class ProductsController(AppDbContext db) : ControllerBase
         p.CategoryId = dto.CategoryId;
         p.BrandId = dto.BrandId;
         p.Stock = dto.Stock;
+        p.IsCustomizable = dto.IsCustomizable ?? false;
+        p.MaxCustomTextLength = dto.MaxCustomTextLength ?? 0;
         db.SaveChanges();
         return Ok(ToDto(p, CatNames(), BrandNames(), ImagesMap([p.Id])));
     }
@@ -181,6 +196,8 @@ public class ProductsController(AppDbContext db) : ControllerBase
         p.BrandId,
         brandName = p.BrandId.HasValue && brands.TryGetValue(p.BrandId.Value, out var b) ? b : null,
         p.Stock,
+        isCustomizable = p.IsCustomizable,
+        maxCustomTextLength = p.MaxCustomTextLength,
         averageRating = p.AverageRating,
         reviewCount = p.ReviewCount,
         images = images.TryGetValue(p.Id, out var list) ? list : new List<object>()

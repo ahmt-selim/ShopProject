@@ -69,6 +69,10 @@ public static class ShopDbSeeder
             ["shippingFee"] = "49.99",
             ["announcement"] = "",
             ["maintenanceMode"] = "false",
+            ["iyzicoMode"] = "test",
+            ["iyzicoIdentityNumber"] = "74300864791",
+            ["iyzicoTestBaseUrl"] = "https://sandbox-api.iyzipay.com",
+            ["iyzicoLiveBaseUrl"] = "https://api.iyzipay.com",
         };
         var existing = db.Settings.Select(s => s.Key).ToHashSet();
         foreach (var kv in defaults.Where(kv => !existing.Contains(kv.Key)))
@@ -384,7 +388,7 @@ public static class ShopDbSeeder
             CREATE INDEX IF NOT EXISTS "IX_ReviewImages_ReviewId" ON "ReviewImages" ("ReviewId");
             """);
 
-        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'"), ("AverageRating", "REAL NOT NULL DEFAULT 0"), ("ReviewCount", "INTEGER NOT NULL DEFAULT 0"), ("ListPrice", "TEXT NOT NULL DEFAULT '0'") })
+        foreach (var col in new[] { ("BrandId", "INTEGER NULL"), ("ProductCode", "TEXT NOT NULL DEFAULT ''"), ("Barcode", "TEXT NOT NULL DEFAULT ''"), ("VatRate", "TEXT NOT NULL DEFAULT '20'"), ("AverageRating", "REAL NOT NULL DEFAULT 0"), ("ReviewCount", "INTEGER NOT NULL DEFAULT 0"), ("ListPrice", "TEXT NOT NULL DEFAULT '0'"), ("IsCustomizable", "INTEGER NOT NULL DEFAULT 0"), ("MaxCustomTextLength", "INTEGER NOT NULL DEFAULT 0") })
         {
             if (!TableColumns(db, "Products").Contains(col.Item1))
                 db.Database.ExecuteSqlRaw($"""ALTER TABLE "Products" ADD COLUMN "{col.Item1}" {col.Item2}""");
@@ -394,6 +398,8 @@ public static class ShopDbSeeder
         if (!TableColumns(db, "ImportTemplates").Contains("FileName"))
             db.Database.ExecuteSqlRaw("""ALTER TABLE "ImportTemplates" ADD COLUMN "FileName" TEXT NOT NULL DEFAULT ''""");
         if (!TableColumns(db, "ImportTemplates").Contains("StoredFile"))
+         if (!TableColumns(db, "OrderItems").Contains("CustomTextsJson"))
+             db.Database.ExecuteSqlRaw("""ALTER TABLE "OrderItems" ADD COLUMN "CustomTextsJson" TEXT NOT NULL DEFAULT '[]'""");
             db.Database.ExecuteSqlRaw("""ALTER TABLE "ImportTemplates" ADD COLUMN "StoredFile" TEXT NOT NULL DEFAULT ''""");
     }
 

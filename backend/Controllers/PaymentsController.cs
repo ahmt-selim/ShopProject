@@ -14,7 +14,6 @@ namespace Backend.Controllers;
 public class PaymentsController(
     AppDbContext db,
     IPaymentService paymentService,
-    IOptions<IyzicoOptions> iyzicoOpts,
     IHttpContextAccessor httpContextAccessor) : ControllerBase
 {
     private string UserId => ClaimsHelper.UserId(User);
@@ -47,6 +46,22 @@ public class PaymentsController(
             if (ci.Qty <= 0) return BadRequest(new { error = "Adet pozitif olmalı." });
             if (p.Stock < ci.Qty) return BadRequest(new { error = $"'{p.Name}' için yeterli stok yok (kalan {p.Stock})." });
             lines.Add((p, ci.Qty));
+        }
+
+        // Kişiye özel ürün metinlerini doğrula
+        foreach (var (p, qty) in lines)
+        {
+            if (!p.IsCustomizable) continue;
+            var provided = dto.CustomTexts is not null && dto.CustomTexts.TryGetValue(p.Id, out var t) ? t : new List<string>();
+            if (provided.Count != qty)
+                return BadRequest(new { error = $"'{p.Name}' için {qty} adet kişiselleştirme metni girilmeli." });
+            foreach (var txt in provided)
+            {
+                if (string.IsNullOrWhiteSpace(txt))
+                    return BadRequest(new { error = $"'{p.Name}' için boş kişiselleştirme metni var." });
+                if (p.MaxCustomTextLength > 0 && txt.Trim().Length > p.MaxCustomTextLength)
+                    return BadRequest(new { error = $"'{p.Name}' metni en fazla {p.MaxCustomTextLength} karakter olabilir." });
+            }
         }
 
         var subtotal = lines.Sum(x => x.p.Price * x.qty);
@@ -83,6 +98,21 @@ public class PaymentsController(
         foreach (var (p, qty) in lines)
         {
             p.Stock -= qty; // rezervasyon
+            var texts = new List<string>();
+            if (p.IsCustomizable)
+            {
+                var provided = dto.CustomTexts is not null && dto.CustomTexts.TryGetValue(p.Id, out var t) ? t : new List<string>();
+                if (provided.Count != qty)
+                    return BadRequest(new { error = $"'{p.Name}' için {qty} adet kişiselleştirme metni girilmeli." });
+                foreach (var txt in provided)
+                {
+                    if (string.IsNullOrWhiteSpace(txt))
+                        return BadRequest(new { error = $"'{p.Name}' için boş kişiselleştirme metni var." });
+                    if (p.MaxCustomTextLength > 0 && txt.Trim().Length > p.MaxCustomTextLength)
+                        return BadRequest(new { error = $"'{p.Name}' metni en fazla {p.MaxCustomTextLength} karakter olabilir." });
+                    texts.Add(txt.Trim());
+                }
+            }
             db.OrderItems.Add(new OrderItem
             {
                 OrderId = order.Id,
@@ -91,6 +121,7 @@ public class PaymentsController(
                 Price = p.Price,
                 Qty = qty,
                 ImageUrl = db.PrimaryImageUrl(p.Id),
+                CustomTextsJson = System.Text.Json.JsonSerializer.Serialize(texts),
             });
         }
         db.SaveChanges();
@@ -116,7 +147,7 @@ public class PaymentsController(
                 Surname: lastName,
                 Email: user.Email,
                 Phone: string.IsNullOrWhiteSpace(addr.Phone) ? (user.Phone ?? "") : addr.Phone,
-                IdentityNumber: iyzicoOpts.Value.TestIdentityNumber,
+                IdentityNumber: GetSetting("iyzicoIdentityNumber", "74300864791"),
                 Ip: ip,
                 City: addr.City,
                 Country: "Turkey",
@@ -241,8 +272,11 @@ public class PaymentsController(
                 System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : fallback)
             .FirstOrDefault(fallback);
 
+    private string GetSetting(string key, string fallback) =>
+        db.Settings.Where(s => s.Key == key).Select(s => s.Value).FirstOrDefault() ?? fallback;
+
     private string FrontendUrl() =>
         (HttpContext.RequestServices.GetService(typeof(IConfiguration)) as IConfiguration)?["Frontend:Url"] ?? "http://localhost:5173";
 
-    public record InitDto(int AddressId);
+    public record InitDto(int AddressId, Dictionary<int, List<string>>? CustomTexts = null);
 }

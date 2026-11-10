@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api/client';
 
-const empty = { name: '', description: '', price: '', listPrice: '', stock: '', categoryId: '', brandId: '', productCode: '', barcode: '', vatRate: '20' };
+const empty = { name: '', description: '', price: '', listPrice: '', stock: '', categoryId: '', brandId: '', productCode: '', barcode: '', vatRate: '20', isCustomizable: false, maxCustomTextLength: '' };
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -15,6 +15,8 @@ export default function ProductForm() {
   const [staged, setStaged] = useState([]);
   const [urlInput, setUrlInput] = useState('');
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState('');
+  const [previewIdx, setPreviewIdx] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [similarItems, setSimilarItems] = useState([]);
   const [similarSearch, setSimilarSearch] = useState('');
@@ -38,6 +40,7 @@ export default function ProductForm() {
         name: p.name, description: p.description, price: p.price, listPrice: p.listPrice ? p.listPrice : '', stock: p.stock,
         categoryId: p.categoryId, brandId: p.brandId || '',
         productCode: p.productCode || '', barcode: p.barcode || '', vatRate: p.vatRate ?? '20',
+        isCustomizable: !!p.isCustomizable, maxCustomTextLength: p.maxCustomTextLength ? p.maxCustomTextLength : '',
       })).catch(console.error);
       loadImages();
       api.getAdminSimilarProducts(id).then(setSimilarItems).catch(console.error);
@@ -95,8 +98,10 @@ export default function ProductForm() {
   const submit = async (e) => {
     e.preventDefault();
     setMsg('');
+    setMsgType('');
     if (form.listPrice !== '' && Number(form.listPrice) > 0 && Number(form.listPrice) < Number(form.price)) {
       setMsg('Liste fiyatı normal fiyattan düşük olamaz.');
+      setMsgType('error');
       return;
     }
     if (!isNew && (id === 'undefined' || !/^\d+$/.test(id))) {
@@ -114,6 +119,8 @@ export default function ProductForm() {
       productCode: form.productCode,
       barcode: form.barcode,
       vatRate: Number(form.vatRate),
+      isCustomizable: !!form.isCustomizable,
+      maxCustomTextLength: form.maxCustomTextLength === '' ? 0 : Number(form.maxCustomTextLength),
     };
     try {
       if (isNew) {
@@ -129,8 +136,10 @@ export default function ProductForm() {
       // Kaydet sonrası ürün düzenleme sayfasında kal; benzer listesini yeniden yükle.
       api.getAdminSimilarProducts(id).then(setSimilarItems).catch(console.error);
       setMsg('Kaydedildi.');
+      setMsgType('success');
     } catch (err) {
       setMsg(err.message);
+      setMsgType('error');
     }
   };
 
@@ -219,7 +228,7 @@ export default function ProductForm() {
           </button>
         )}
       </div>
-      {msg && <div className="error">{msg}</div>}
+      {msg && <div style={msgType === 'success' ? { background: '#dcfce7', color: '#166534', padding: '10px 12px', borderRadius: 8 } : undefined} className={msgType === 'success' ? '' : 'error'}>{msg}</div>}
       <form onSubmit={submit} className="form">
         <div className="row2">
           <label>Ürün adı*<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label>
@@ -250,6 +259,27 @@ export default function ProductForm() {
         <div className="row2">
           <label>KDV (%)*<input type="number" step="0.01" min="0" max="100" value={form.vatRate} onChange={(e) => setForm({ ...form, vatRate: e.target.value })} required /></label>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Kişiye Özel Ürün</span>
+            <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, marginLeft: 8 }}>
+              <input type="checkbox" checked={!!form.isCustomizable} onChange={(e) => setForm({ ...form, isCustomizable: e.target.checked })} style={{ opacity: 0, width: 0, height: 0 }} />
+              <span style={{
+                position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: form.isCustomizable ? '#4caf50' : '#ccc', transition: '0.3s', borderRadius: 24,
+              }}>
+                <span style={{
+                  position: 'absolute', height: 18, width: 18, left: form.isCustomizable ? 22 : 3, bottom: 3,
+                  backgroundColor: 'white', transition: '0.3s', borderRadius: '50%',
+                }} />
+              </span>
+            </label>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Maks. Karakter
+            <input type="number" min="1" style={{ width: 70 }} disabled={!form.isCustomizable} value={form.maxCustomTextLength} onChange={(e) => setForm({ ...form, maxCustomTextLength: e.target.value })} />
+          </label>
+        </div>
         <label>Açıklama<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
       </form>
 
@@ -272,7 +302,7 @@ export default function ProductForm() {
               {rows.map((img) => (
                 <tr key={img.id}>
                   <td>{img.id}</td>
-                  <td><img className="timg" src={api.imageUrl(img.url)} alt="" /></td>
+                  <td><img className="timg" src={api.imageUrl(img.url)} alt="" style={{ cursor: 'zoom-in' }} onClick={() => setPreviewIdx(rows.indexOf(img))} /></td>
                   <td className="url-cell">{img.url}</td>
                   <td className="right"><button className="hbtn" onClick={() => removeImage(img)}>Sil</button></td>
                 </tr>
@@ -363,7 +393,7 @@ export default function ProductForm() {
           )}
           {/* Arama sonuçları da aynı çoklu seç panelinde checkbox ile seçilebilir. */}
           {similarItems.length > 0 && (
-            <div className="table-wrap">
+            <div className="table-wrap" style={{ overflowX: 'auto' }}>
               <table className="table">
                 <tbody>
                   {similarItems.map((it, idx) => (
@@ -395,6 +425,13 @@ export default function ProductForm() {
         <button className="hbtn" onClick={() => navigate('/admin/products')}>Vazgeç</button>
         <button className="btn" onClick={submit}>Kaydet</button>
       </div>
+      {previewIdx !== null && rows.length > 0 && (
+        <div onClick={() => setPreviewIdx(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, cursor: 'zoom-out' }}>
+          <button onClick={(e) => { e.stopPropagation(); setPreviewIdx((i) => (i - 1 + rows.length) % rows.length); }} style={{ position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', fontSize: 32, background: 'transparent', color: '#fff', border: 'none', cursor: 'pointer' }}>‹</button>
+          <img src={api.imageUrl(rows[previewIdx].url)} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 8 }} onClick={(e) => e.stopPropagation()} />
+          <button onClick={(e) => { e.stopPropagation(); setPreviewIdx((i) => (i + 1) % rows.length); }} style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', fontSize: 32, background: 'transparent', color: '#fff', border: 'none', cursor: 'pointer' }}>›</button>
+        </div>
+      )}
     </>
   );
 }

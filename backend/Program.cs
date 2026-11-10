@@ -33,10 +33,6 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<ISimilarProductService, SimilarProductService>();
 builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddOptions<IyzicoOptions>()
-    .Bind(builder.Configuration.GetSection("Iyzico"))
-    .ValidateOnStart();
-builder.Services.AddSingleton<IValidateOptions<IyzicoOptions>, IyzicoOptionsValidator>();
 builder.Services.AddScoped<IPaymentService, IyzicoPaymentService>();
 
 // Kargo durum senkronizasyonu: her saat calisan arka plan servisi.

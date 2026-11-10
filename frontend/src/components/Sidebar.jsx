@@ -30,8 +30,7 @@ export default function Sidebar({ categories, selected, onSelect }) {
                   className={!selected ? 'active' : ''}
                   onClick={() => { onSelect(null); closeIfMobile(); }}
                 >
-                  Tümü
-                </button>
+                  Tüm Kategoriler                </button>
               </li>
               {categories.map((c) => (
                 <li key={c.id}>

@@ -66,6 +66,7 @@ public class OrderItem
     public decimal Price { get; set; }
     public int Qty { get; set; }
     public string ImageUrl { get; set; } = string.Empty;
+    public string CustomTextsJson { get; set; } = "[]";
 }
 
 public class Setting

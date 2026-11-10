@@ -13,7 +13,15 @@ export default function Checkout() {
   const [error, setError] = useState('');
   const [placing, setPlacing] = useState(false);
   const [formHtml, setFormHtml] = useState('');
+  const [customTexts, setCustomTexts] = useState({});
   const formRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('cartCustomTexts');
+      if (raw) setCustomTexts(JSON.parse(raw));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     api.getAddresses().then((a) => {
@@ -55,7 +63,12 @@ export default function Checkout() {
     }
     setPlacing(true);
     try {
-      const res = await api.initializePayment(selected);
+      let customTexts = null;
+      try {
+        const raw = sessionStorage.getItem('cartCustomTexts');
+        if (raw) customTexts = JSON.parse(raw);
+      } catch {}
+      const res = await api.initializePayment(selected, customTexts);
       setFormHtml(res.checkoutFormContent || '');
     } catch (err) {
       setError(err.message);
@@ -97,6 +110,13 @@ export default function Checkout() {
                 <div className="cart-info">
                   <strong>{i.name}</strong>
                   <div className="muted">{i.qty} x {Number(i.price).toLocaleString('tr-TR')} ₺</div>
+                   {(customTexts[i.productId || i.id] || []).length > 0 && (
+                     <div className="muted" style={{ marginTop: 4 }}>
+                       {(customTexts[i.productId || i.id] || []).map((t, idx) => (
+                         <div key={idx}>{idx + 1}. {t}</div>
+                       ))}
+                     </div>
+                   )}
                 </div>
                 <strong>{(i.qty * i.price).toLocaleString('tr-TR')} ₺</strong>
               </div>

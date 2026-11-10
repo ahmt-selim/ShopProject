@@ -1,25 +1,61 @@
 using Iyzipay;
 using Iyzipay.Model;
 using Iyzipay.Request;
-using Microsoft.Extensions.Options;
+using Backend.Data;
 
 namespace Backend.Services.Payments;
 
-public class IyzicoPaymentService(IOptions<IyzicoOptions> options, ILogger<IyzicoPaymentService> logger) : IPaymentService
+public class IyzicoPaymentService(AppDbContext db, ILogger<IyzicoPaymentService> logger) : IPaymentService
 {
+    private (string ApiKey, string SecretKey, string BaseUrl, string IdentityNumber) ResolveOptions()
+    {
+        string Get(string key, string fallback = "") =>
+            db.Settings.Where(s => s.Key == key).Select(s => s.Value).FirstOrDefault() ?? fallback;
+
+        var mode = Get("iyzicoMode", "test").Trim().ToLowerInvariant();
+        if (mode != "live") mode = "test";
+
+        string apiKey, secretKey, baseUrl;
+        if (mode == "live")
+        {
+            apiKey = Get("iyzicoLiveApiKey");
+            secretKey = Get("iyzicoLiveSecretKey");
+            baseUrl = Get("iyzicoLiveBaseUrl", "https://api.iyzipay.com");
+        }
+        else
+        {
+            apiKey = Get("iyzicoTestApiKey");
+            secretKey = Get("iyzicoTestSecretKey");
+            baseUrl = Get("iyzicoTestBaseUrl", "https://sandbox-api.iyzipay.com");
+        }
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            baseUrl = mode == "live" ? "https://api.iyzipay.com" : "https://sandbox-api.iyzipay.com";
+
+        var identity = Get("iyzicoIdentityNumber", "74300864791");
+        if (string.IsNullOrWhiteSpace(identity)) identity = "74300864791";
+
+        return (apiKey, secretKey, baseUrl, identity);
+    }
+
     private Iyzipay.Options IyzipayOptions()
     {
-        var o = options.Value;
+        var (apiKey, secretKey, baseUrl, _) = ResolveOptions();
         return new Iyzipay.Options
         {
-            ApiKey = o.ApiKey,
-            SecretKey = o.SecretKey,
-            BaseUrl = o.BaseUrl,
+            ApiKey = apiKey,
+            SecretKey = secretKey,
+            BaseUrl = baseUrl,
         };
     }
 
+    public string TestIdentityNumber => ResolveOptions().IdentityNumber;
+
     public async Task<PaymentInitializeResult> InitializeAsync(PaymentInitializeRequest req)
     {
+        var (apiKey, secretKey, baseUrl, _) = ResolveOptions();
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(secretKey))
+            return new PaymentInitializeResult(false, null, null, null, "CONFIG", "iyzico API bilgileri ayarlardan girilmemiş.");
+
         var iyziOpts = IyzipayOptions();
         var request = new CreateCheckoutFormInitializeRequest
         {
@@ -83,6 +119,10 @@ public class IyzicoPaymentService(IOptions<IyzicoOptions> options, ILogger<Iyzic
 
     public async Task<PaymentRetrieveResult> RetrieveAsync(string token)
     {
+        var (apiKey, secretKey, baseUrl, _) = ResolveOptions();
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(secretKey))
+            return new PaymentRetrieveResult(false, null, null, null, null, null, null, 1, "CONFIG", "iyzico API bilgileri ayarlardan girilmemiş.");
+
         var iyziOpts = IyzipayOptions();
         var req = new RetrieveCheckoutFormRequest { Token = token };
         var form = await CheckoutForm.Retrieve(req, iyziOpts);

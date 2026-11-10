@@ -322,6 +322,10 @@ namespace Backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("CustomTextsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -452,8 +456,14 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsCustomizable")
+                        .HasColumnType("INTEGER");
+
                     b.Property<decimal>("ListPrice")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("MaxCustomTextLength")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()
