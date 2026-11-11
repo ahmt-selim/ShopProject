@@ -306,6 +306,10 @@ try
         // Migration DB'ye ilk kez burada değecek -> yedek almadan uygulamayı çalıştırma.
         DbMigrator.EnsureMigrated(db);
         ShopDbSeeder.Seed(db, app.Configuration, app.Logger);
+        // Slug backfill for existing products.
+        foreach (var p in db.Products.Where(p => string.IsNullOrWhiteSpace(p.Slug)).ToList())
+            p.Slug = Backend.Utils.SlugHelper.Slugify(p.Name);
+        db.SaveChanges();
     }
 }
 catch (Exception ex)

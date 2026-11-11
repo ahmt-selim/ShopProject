@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Layout from '../components/Layout';
+import SEO from '../components/SEO';
 import { IconEdit, IconHeart } from '../components/icons';
 import AddToCartButton from '../components/AddToCartButton';
 import StarRating from '../components/StarRating';
@@ -13,7 +14,8 @@ import { useFavorites } from '../store/FavoritesContext';
 import useSwipe from '../hooks/useSwipe';
 
 export default function ProductDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  const slugOrId = params.slug || params.id;
   const [p, setP] = useState(null);
   const { add } = useCart();
   const { user, isAdmin } = useAuth();
@@ -36,14 +38,15 @@ export default function ProductDetail() {
     window.scrollTo(0, 0);
     setActiveIdx(0);
     setP(null);
-    api.getProduct(id).then((prod) => {
+    const fetcher = /^\d+$/.test(String(slugOrId)) ? api.getProduct(slugOrId) : api.getProductBySlug(slugOrId);
+    fetcher.then((prod) => {
       setP(prod);
       setActiveIdx(0);
       api.freeShipping(prod.price).then(setFreeShip).catch(() => {});
       // İçerik yüklendikten sonra da en üste sabitle
       requestAnimationFrame(() => window.scrollTo(0, 0));
     }).catch(console.error);
-  }, [id]);
+  }, [slugOrId]);
 
   // Tekerlek ile yatay kaydırma (passive:false ile sayfa kaymasını engelle)
   // Not: Hooks kuralları gereği erken return'den önce olmalı
@@ -166,8 +169,31 @@ export default function ProductDetail() {
     dragRef.current.down = false;
   };
 
+  const jsonLd = p ? {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name,
+    description: p.description,
+    image: imgUrls,
+    sku: p.productCode || String(p.id),
+    brand: p.brandName ? { '@type': 'Brand', name: p.brandName } : undefined,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'TRY',
+      price: p.price,
+      availability: p.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      url: window.location.href,
+    },
+    aggregateRating: p.reviewCount > 0 ? {
+      '@type': 'AggregateRating',
+      ratingValue: p.averageRating,
+      reviewCount: p.reviewCount,
+    } : undefined,
+  } : null;
+
   return (
     <Layout>
+      <SEO title={p?.name} description={p?.description?.slice(0, 155)} canonical={window.location.href} jsonLd={jsonLd} />
       <div className="detail">
         <div className="gallery">
           <div
@@ -226,7 +252,7 @@ export default function ProductDetail() {
         </div>
         <div>
           <div className="card-cat">{p.categoryName}{p.brandName ? ` - ${p.brandName}` : ''}</div>
-          <h2>{p.name}</h2>
+          <h1>{p.name}</h1>
           <button className="rev-scroll-link" onClick={() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' })}>
             <StarRating value={p.averageRating} reviewCount={p.reviewCount ?? 0} size={16} />
           </button>

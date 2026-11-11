@@ -34,7 +34,7 @@ export default function ProductCard({ product }) {
   return (
     <div className="card">
       <Link
-        to={`/product/${product.id}`}
+        to={`/urunler/${product.slug || product.id}`}
         className="card-img"
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => { setHovering(false); setHoverIndex(0); }}
@@ -58,7 +58,7 @@ export default function ProductCard({ product }) {
       </Link>
       <div className="card-body">
         <div className="card-cat">{product.categoryName}</div>
-        <Link to={`/product/${product.id}`} className="card-title" title={product.name}>{product.name}</Link>
+        <Link to={`/urunler/${product.slug || product.id}`} className="card-title" title={product.name}>{product.name}</Link>
         <StarRating value={product.averageRating} reviewCount={product.reviewCount ?? 0} size={14} />
         <div className="card-price">
           {product.listPrice && Number(product.listPrice) > Number(product.price) ? (

@@ -1,5 +1,6 @@
 using Backend.Data;
 using Backend.Models;
+using Backend.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -102,6 +103,14 @@ public class ProductsController(AppDbContext db) : ControllerBase
             ImagesMap([id])));
     }
 
+    [HttpGet("slug/{slug}")]
+    public ActionResult<object> GetBySlug(string slug)
+    {
+        var p = db.Products.FirstOrDefault(x => x.Slug == slug);
+        if (p is null) return NotFound();
+        return Ok(ToDto(p, CatNames(), BrandNames(), ImagesMap([p.Id])));
+    }
+
     [Authorize(Roles = "admin")]
     [HttpPost]
     public ActionResult<object> Create(UpsertDto dto)
@@ -112,6 +121,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
         var p = new Product
         {
             Name = dto.Name.Trim(),
+            Slug = SlugHelper.Slugify(dto.Name),
             Description = dto.Description?.Trim() ?? "",
             Price = dto.Price,
             ListPrice = dto.ListPrice ?? 0,
@@ -139,6 +149,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
         if (err is not null) return BadRequest(new { error = err });
 
         p.Name = dto.Name.Trim();
+        p.Slug = SlugHelper.Slugify(dto.Name);
         p.Description = dto.Description?.Trim() ?? "";
         p.Price = dto.Price;
         p.ListPrice = dto.ListPrice ?? 0;
@@ -203,6 +214,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
         Dictionary<int, string> brands, Dictionary<int, List<object>> images) => new
     {
         p.Id,
+        p.Slug,
         p.Name,
         p.Description,
         p.Price,

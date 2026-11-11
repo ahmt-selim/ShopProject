@@ -58,6 +58,7 @@ export const api = {
     return request(`/api/products${qs ? `?${qs}` : ''}`);
   },
   getProduct: (id) => request(`/api/products/${id}`),
+  getProductBySlug: (slug) => request(`/api/products/slug/${encodeURIComponent(slug)}`),
   getCategories: (page, pageSize) => {
     const qs = page ? `?page=${page}&pageSize=${pageSize || 20}` : '';
     return request(`/api/categories${qs}`);

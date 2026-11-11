@@ -479,6 +479,10 @@ namespace Backend.Migrations
                     b.Property<int>("ReviewCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Stock")
                         .HasColumnType("INTEGER");
 

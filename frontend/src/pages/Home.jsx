@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import Sidebar from '../components/Sidebar';
 import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
+import SEO from '../components/SEO';
 
 function computePageSize() {
   if (typeof window === 'undefined') return 42;
@@ -138,11 +139,18 @@ export default function Home() {
     setSearchParams(id ? { category: String(id) } : {});
   };
 
+  const selectedCat = categories.find((c) => c.id === selected);
+  const title = selectedCat ? `${selectedCat.name} - 3D Baskı Ürünleri` : (q ? `Arama: ${q}` : '3D Baskı Ürünleri ve Kişiye Özel Figürler');
+  const description = selectedCat
+    ? `${selectedCat.name} kategorisindeki 3D baskı ürünlerini keşfedin. Kişiye özel figürler, anahtarlıklar ve daha fazlası.`
+    : 'ihtiyacın3D ile 3D baskı figür, anahtarlık ve kişiye özel ürünler. Uygun fiyat, hızlı kargo.';
+
   return (
     <Layout
       sidebar={<Sidebar categories={categories} selected={selected} onSelect={selectCategory} filters={filters} onFilterChange={(key) => { setFilters((prev) => ({ ...prev, [key]: !prev[key] })); setPage(1); }} />}
     >
-      <h2>Anasayfa - Ürünler</h2>
+      <SEO title={title} description={description} canonical={window.location.href} noindex={!!(q || filters.discounted || filters.freeShipping || page > 1)} />
+      <h1>{selectedCat ? selectedCat.name : 'Ürünler'}</h1>
       <input
         className="search-input"
         value={q}
