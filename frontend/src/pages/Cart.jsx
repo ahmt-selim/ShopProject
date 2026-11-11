@@ -11,6 +11,17 @@ export default function Cart() {
   const navigate = useNavigate();
 
   const [customTexts, setCustomTexts] = useState({});
+  const [shippingFee, setShippingFee] = useState(49.99);
+  const [freeShippingLimit, setFreeShippingLimit] = useState(0);
+
+  useEffect(() => {
+    api.publicSettings()
+      .then((s) => {
+        setShippingFee(Number(s?.shippingFee || 49.99));
+        setFreeShippingLimit(Number(s?.freeShippingLimit || 0));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setCustomTexts((prev) => {
@@ -123,8 +134,30 @@ export default function Cart() {
               </div>
             ))}
           </div>
-          <h3>Toplam: {totalPrice.toLocaleString('tr-TR')} ₺</h3>
-          <div className="row">
+          <h3 style={{ marginBottom: 8 }}>Toplam: {totalPrice.toLocaleString('tr-TR')} ₺</h3>
+          {(() => {
+            const free = freeShippingLimit > 0 && totalPrice >= freeShippingLimit;
+            const shippingCost = free ? 0 : shippingFee;
+            const grandTotal = totalPrice + shippingCost;
+            return (
+              <>
+                <div className="muted" style={{ marginTop: 4, marginBottom: 8 }}>
+                  Kargo Bedeli:{' '}
+                  {free ? (
+                    <>
+                      <s>{shippingFee.toLocaleString('tr-TR')} ₺</s> <span>(Ücretsiz)</span>
+                    </>
+                  ) : (
+                    `${shippingFee.toLocaleString('tr-TR')} ₺`
+                  )}
+                </div>
+                <h3 style={{ marginTop: 8, marginBottom: 16 }}>
+                  Genel Toplam: {grandTotal.toLocaleString('tr-TR')} ₺
+                </h3>
+              </>
+            );
+          })()}
+          <div className="row" style={{ marginTop: 8 }}>
             <button className="btn" onClick={checkout}>Siparişi Tamamla</button>
             <button className="hbtn" onClick={clear}>Sepeti Temizle</button>
           </div>

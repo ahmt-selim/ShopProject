@@ -18,12 +18,16 @@ public class SettingsController(AppDbContext db) : ControllerBase
         decimal.TryParse(Get("freeShippingLimit", "0"),
             System.Globalization.NumberStyles.Any,
             System.Globalization.CultureInfo.InvariantCulture, out var limit);
+        decimal.TryParse(Get("shippingFee", "49.99"),
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var shippingFee);
         return Ok(new
         {
             storeName = Get("storeName", "ihtiyacın3D"),
             announcement = Get("announcement"),
             currency = Get("currency", "₺"),
-            freeShippingLimit = limit
+            freeShippingLimit = limit,
+            shippingFee = shippingFee
         });
     }
 

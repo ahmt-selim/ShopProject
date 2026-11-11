@@ -19,7 +19,8 @@ public class ProductsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public ActionResult<object> GetAll(
         [FromQuery] int? categoryId, [FromQuery] string? q, [FromQuery] int? brandId,
-        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort)
+        [FromQuery] int? page, [FromQuery] int? pageSize, [FromQuery] string? sort,
+        [FromQuery] bool? discounted, [FromQuery] bool? freeShipping)
     {
         var baseQuery = db.Products.AsQueryable();
 
@@ -37,6 +38,24 @@ public class ProductsController(AppDbContext db) : ControllerBase
                 (p.Name ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
                 (p.ProductCode ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
                 (p.Barcode ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (discounted == true)
+        {
+            list = list.Where(p => p.ListPrice > 0 && p.ListPrice > p.Price).ToList();
+        }
+
+        if (freeShipping == true)
+        {
+            decimal limit = 1500m;
+            var setting = db.Settings.FirstOrDefault(s => s.Key == "freeShippingLimit");
+            if (setting is not null && decimal.TryParse(setting.Value,
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+            {
+                limit = parsed;
+            }
+            list = list.Where(p => p.Price >= limit).ToList();
         }
 
         var soldCounts = db.OrderItems
@@ -57,7 +76,7 @@ public class ProductsController(AppDbContext db) : ControllerBase
 
         if (page.HasValue)
         {
-            var size = Math.Clamp(pageSize ?? 20, 1, 100);
+            var size = Math.Clamp(pageSize ?? 42, 1, 100);
             var p = Math.Max(page.Value, 1);
             var total = list.Count;
             var items = list.Skip((p - 1) * size).Take(size).ToList();

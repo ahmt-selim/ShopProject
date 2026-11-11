@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Layout from '../components/Layout';
@@ -90,19 +90,48 @@ export default function ProductDetail() {
   };
 
   // Görseller (hook'lar erken return'den önce çalışmalı)
-  const images = p?.images?.length ? p.images : [];
-  const imgUrls = images.length
-    ? images.map((img) => api.imageUrl(img.url))
-    : (p ? [api.primaryImage(p)] : []);
+  const images = useMemo(() => (p?.images?.length ? p.images : []), [p]);
+  const imgUrls = useMemo(() => (
+    images.length
+      ? images.map((img) => api.imageUrl(img.url))
+      : (p ? [api.primaryImage(p)] : [])
+  ), [images, p]);
   const total = imgUrls.length;
   const count = total || 1;
   const safeIdx = total ? activeIdx % total : 0;
 
-  const prev = useCallback(() => setActiveIdx((i) => (i - 1 + count) % count), [count]);
-  const next = useCallback(() => setActiveIdx((i) => (i + 1) % count), [count]);
+  // Resim değişiminde kaydırma animasyonu (buton/ok ve swipe için ortak)
+  const slideTo = useCallback((dir) => {
+    const els = [galleryImgRef.current, lightboxImgRef.current].filter(Boolean);
+    els.forEach((el) => {
+      const w = el.getBoundingClientRect().width || 320;
+      el.style.transition = 'none';
+      el.style.transform = `translate3d(${dir > 0 ? w : -w}px, 0, 0)`;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform .35s cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.transform = '';
+        });
+      });
+    });
+  }, []);
+
+  const prev = useCallback(() => {
+    setActiveIdx((i) => (i - 1 + count) % count);
+    slideTo(-1);
+  }, [count, slideTo]);
+  const next = useCallback(() => {
+    setActiveIdx((i) => (i + 1) % count);
+    slideTo(1);
+  }, [count, slideTo]);
 
   const gallerySwipe = useSwipe({ targetRef: galleryImgRef, onSwipeLeft: next, onSwipeRight: prev, enabled: total > 1 });
   const lightboxSwipe = useSwipe({ targetRef: lightboxImgRef, onSwipeLeft: next, onSwipeRight: prev, enabled: total > 1 });
+
+  // Görselleri önceden yükle (kaydırma sırasında takılma/flash'ı azaltır)
+  useEffect(() => {
+    imgUrls.forEach((u) => { const i = new Image(); i.src = u; });
+  }, [imgUrls]);
 
   if (!p) return <Layout><div className="page-spinner"><span className="spinner" /></div></Layout>;
 
@@ -114,7 +143,9 @@ export default function ProductDetail() {
   };
 
   const goTo = (idx) => {
+    const dir = idx > activeIdx ? 1 : (idx < activeIdx ? -1 : 1);
     setActiveIdx(idx);
+    slideTo(dir);
     scrollActiveIntoView(idx);
   };
 

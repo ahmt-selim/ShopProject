@@ -32,7 +32,7 @@ export default function AdminProducts() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(42);
   const [selected, setSelected] = useState(() => new Set());
   const menuRef = useRef(null);
   const navigate = useNavigate();

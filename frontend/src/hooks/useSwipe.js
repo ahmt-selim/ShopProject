@@ -10,7 +10,7 @@ export default function useSwipe({ targetRef, onSwipeLeft, onSwipeRight, thresho
   const setTransform = (x, animate) => {
     const el = targetRef?.current;
     if (!el) return;
-    el.style.transition = animate ? 'transform .18s ease' : 'none';
+    el.style.transition = animate ? 'transform .35s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
     el.style.transform = x ? `translate3d(${x}px, 0, 0)` : '';
   };
 
@@ -49,17 +49,7 @@ export default function useSwipe({ targetRef, onSwipeLeft, onSwipeRight, thresho
     if (s.horizontal) {
       if (Math.abs(dx) >= threshold) {
         s.swipedAt = Date.now();
-        // Yeni görsel, kaydırma yönünün karşı tarafından içeri girsin
-        const el = targetRef?.current;
-        if (el) {
-          const w = el.getBoundingClientRect().width || 320;
-          el.style.transition = 'none';
-          el.style.transform = `translate3d(${dx < 0 ? w : -w}px, 0, 0)`;
-          requestAnimationFrame(() => {
-            el.style.transition = 'transform .2s ease';
-            el.style.transform = '';
-          });
-        }
+        // Yeni resim animasyonu ilgili callback (next/prev) tarafından yapılır
         if (dx < 0) onSwipeLeft?.();
         else onSwipeRight?.();
       } else {

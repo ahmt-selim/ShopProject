@@ -1,19 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
+import { IconAdmin } from './icons';
 import { useTheme } from '../themes/ThemeContext';
 import { useSidebar } from '../store/SidebarContext';
 import { IconCart, IconHeart, IconUser, IconTheme } from './icons';
 
 export default function Header() {
   const { totalCount } = useCart();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { themeId, setThemeId, themes } = useTheme();
   const { open: sidebarOpen, toggle: toggleSidebar } = useSidebar();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
 
   const ids = Object.keys(themes);
   const cycleTheme = () => setThemeId(ids[(ids.indexOf(themeId) + 1) % ids.length]);
@@ -47,18 +50,25 @@ export default function Header() {
   return (
     <header className="header">
       <div className="header-left">
-        <button
-          type="button"
-          className="icon-btn hamburger-btn"
-          onClick={toggleSidebar}
-          aria-label="Kategorileri aç veya kapat"
-          aria-expanded={sidebarOpen}
-          aria-controls="sidebar-categories"
-        >
-          <span className="hamburger-line" />
-          <span className="hamburger-line" />
-          <span className="hamburger-line" />
-        </button>
+        {isHome && (
+          <button
+            type="button"
+            className="icon-btn hamburger-btn mobile-only"
+            onClick={toggleSidebar}
+            aria-label="Kategorileri aç veya kapat"
+            aria-expanded={sidebarOpen}
+            aria-controls="sidebar-categories"
+          >
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+            <span className="hamburger-line" />
+          </button>
+        )}
+        {isAdmin && (
+          <Link to="/admin/products" className="icon-btn mobile-only" title="Yönetim Paneli" style={{ marginRight: 8 }}>
+            <IconAdmin />
+          </Link>
+        )}
         <Link to="/" className="logo" title="ihtiyacın3D">
           <img src="/logo-header.png" alt="ihtiyacın3D" className="logo-img" />
         </Link>
@@ -75,9 +85,9 @@ export default function Header() {
           {totalCount > 0 && <span className="cart-badge">{totalCount}</span>}
         </Link>
         {!user ? (
-          <Link to="/login" className="hbtn primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Link to="/login" className="icon-btn" title="Giriş Yap">
             <IconUser />
-            Giriş Yap
+            
           </Link>
         ) : (
           <div className="menu-wrap" ref={menuRef}>

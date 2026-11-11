@@ -7,11 +7,11 @@ import ProductCard from '../components/ProductCard';
 import Pagination from '../components/Pagination';
 
 function computePageSize() {
-  if (typeof window === 'undefined') return 20;
+  if (typeof window === 'undefined') return 42;
   const cols = Math.max(1, Math.floor((window.innerWidth - 260) / 236));
   const rows = Math.max(3, Math.ceil((window.innerHeight - 200) / 280));
   const size = cols * rows;
-  return Math.min(60, Math.max(12, size));
+  return Math.min(60, Math.max(42, size));
 }
 
 export default function Home() {
@@ -25,6 +25,7 @@ export default function Home() {
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('varsayilan');
   const [pageSize, setPageSize] = useState(() => computePageSize());
+  const [filters, setFilters] = useState({ discounted: false, freeShipping: false });
   const [page, setPage] = useState(() => {
     const p = Number(searchParams.get('page'));
     return p > 0 ? p : 1;
@@ -76,7 +77,7 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => {
-      api.getProducts(selected, q.trim() || undefined, page, pageSize, sort)
+      api.getProducts(selected, q.trim() || undefined, page, pageSize, sort, filters.discounted, filters.freeShipping)
         .then((res) => {
           setProducts(res.items || []);
           setTotal(res.total || 0);
@@ -102,7 +103,7 @@ export default function Home() {
         });
     }, 300);
     return () => clearTimeout(t);
-  }, [selected, q, page, sort, pageSize]);
+  }, [selected, q, page, sort, pageSize, filters]);
 
   useEffect(() => {
     const save = () => {
@@ -139,7 +140,7 @@ export default function Home() {
 
   return (
     <Layout
-      sidebar={<Sidebar categories={categories} selected={selected} onSelect={selectCategory} />}
+      sidebar={<Sidebar categories={categories} selected={selected} onSelect={selectCategory} filters={filters} onFilterChange={(key) => { setFilters((prev) => ({ ...prev, [key]: !prev[key] })); setPage(1); }} />}
     >
       <h2>Anasayfa - Ürünler</h2>
       <input
@@ -148,14 +149,15 @@ export default function Home() {
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Ürün adı, kodu veya barkod ile ara..."
       />
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span className="muted">{total} Ürün</span>
         <select
           className="admin-select"
           value={sort}
           onChange={(e) => { setSort(e.target.value); setPage(1); }}
           aria-label="Sıralama"
         >
-          <option value="varsayilan">Varsayılan</option>
+          <option value="varsayilan">Sıralama Seçiniz</option>
           <option value="bestseller">En çok satan</option>
           <option value="priceAsc">Fiyat: Düşükten Yükseğe</option>
           <option value="priceDesc">Fiyat: Yüksekten Düşüğe</option>
@@ -166,7 +168,6 @@ export default function Home() {
       {loading ? <div className="page-spinner"><span className="spinner" /></div> : (
         products.length === 0 ? <p>Ürün bulunamadı.</p> : (
           <>
-            <p className="muted">{total} ürün bulundu</p>
             <div className="grid">
               {products.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
